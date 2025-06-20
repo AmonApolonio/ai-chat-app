@@ -3,7 +3,13 @@ import { ChatMessage, ChatRequest, ChatResponse } from '../types/chat';
 import '../styles/ChatBox.css';
 
 const ChatBox: React.FC = () => {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>([
+    {
+      id: 'welcome-message',
+      text: 'Hello! I am your company research assistant. Which company would you like me to provide information about today?',
+      isUser: false,
+    }
+  ]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -105,7 +111,7 @@ const ChatBox: React.FC = () => {
           type="text"
           value={inputValue}
           onChange={(e) => setInputValue(e.target.value)}
-          placeholder="Type your message..."
+          placeholder="Type a company name to research..."
           className="message-input"
           autoFocus
         />

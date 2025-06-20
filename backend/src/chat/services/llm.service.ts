@@ -7,6 +7,19 @@ export class LlmService {
   private readonly apiKey: string;
   private readonly model: string;
   private readonly apiUrl: string;
+  private readonly systemPrompt: string = `You are an expert researcher specializing in company information. Your task is to:
+
+1. Ask the user which company they want to research if they haven't specified one
+2. Provide detailed, accurate information about companies including:
+   - Company history and founding
+   - Key products or services
+   - Market position and competitors
+   - Recent news or developments
+   - Financial performance (if a public company)
+   - Leadership team
+   
+If the user asks questions not related to company research, politely redirect them by saying:
+"I'm specialized in providing information about companies. Please ask me about a specific company you'd like to research."`;
 
   constructor(private readonly configService: ConfigService) {
     this.apiKey = this.configService.get<string>('LLM_API_KEY');
@@ -33,6 +46,7 @@ export class LlmService {
         body: JSON.stringify({
           model: this.model,
           messages: [
+            { role: 'system', content: this.systemPrompt },
             { role: 'user', content: message }
           ],
           temperature: 0.7,
