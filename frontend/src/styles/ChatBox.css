@@ -52,6 +52,53 @@
   background-color: #e5e5ea;
   color: black;
   border-bottom-left-radius: 4px;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+/* Styling for markdown elements */
+.bot-message .message-bubble p {
+  margin-bottom: 10px;
+  margin-top: 0;
+}
+
+.bot-message .message-bubble p:last-child {
+  margin-bottom: 0;
+}
+
+.bot-message .message-bubble ul, 
+.bot-message .message-bubble ol {
+  margin-top: 5px;
+  margin-bottom: 10px;
+  padding-left: 20px;
+}
+
+.bot-message .message-bubble h1,
+.bot-message .message-bubble h2,
+.bot-message .message-bubble h3,
+.bot-message .message-bubble h4 {
+  margin-top: 12px;
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+
+.bot-message .message-bubble a {
+  color: #0b93f6;
+  text-decoration: underline;
+}
+
+.bot-message .message-bubble code {
+  background-color: #f1f1f1;
+  padding: 2px 4px;
+  border-radius: 3px;
+  font-family: monospace;
+}
+
+.bot-message .message-bubble pre {
+  background-color: #f1f1f1;
+  padding: 10px;
+  border-radius: 5px;
+  overflow-x: auto;
 }
 
 .typing {

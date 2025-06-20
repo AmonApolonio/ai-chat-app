@@ -1,18 +1,20 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { ChatMessage, ChatRequest, ChatResponse } from '../types/chat';
+import ReactMarkdown from 'react-markdown';
 import '../styles/ChatBox.css';
 
 const ChatBox: React.FC = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: 'welcome-message',
-      text: 'Hello! I am your company research assistant. Which company would you like me to provide information about today?',
+      text: 'Hello! I am your company research assistant with AI agent capabilities. I can search the web for the most up-to-date information about companies. Which company would you like me to research today?',
       isUser: false,
     }
   ]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [sessionId] = useState<string>(`session-${Date.now()}`);
   const messageContainerRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll to newest message
@@ -52,14 +54,16 @@ const ChatBox: React.FC = () => {
     
     setIsLoading(true);
 
-    try {
-      const response = await fetch('http://localhost:3000/chat', {
+    try {      const response = await fetch('http://localhost:3000/chat', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ message: userMessage.text } as ChatRequest),
-      });      if (!response.ok) {
+        body: JSON.stringify({ 
+          message: userMessage.text,
+          sessionId: sessionId 
+        } as ChatRequest),
+      });if (!response.ok) {
         if (response.status === 400) {
           throw new Error('Message cannot be empty.');
         } else if (response.status === 429) {
@@ -88,13 +92,18 @@ const ChatBox: React.FC = () => {
 
   return (
     <div className="chat-box">
-      <div className="message-container" ref={messageContainerRef}>
-        {messages.map((message) => (
+      <div className="message-container" ref={messageContainerRef}>        {messages.map((message) => (
           <div
             key={message.id}
             className={`message ${message.isUser ? 'user-message' : 'bot-message'}`}
           >
-            <div className="message-bubble">{message.text}</div>
+            <div className="message-bubble">
+              {message.isUser ? (
+                message.text
+              ) : (
+                <ReactMarkdown>{message.text}</ReactMarkdown>
+              )}
+            </div>
           </div>
         ))}
         {isLoading && (
