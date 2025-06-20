@@ -1,5 +1,5 @@
 import { ChatOpenAI } from "@langchain/openai";
-import { type HumanMessage } from "@langchain/core/messages";
+import { type HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { OnTokenCallback } from "./agent.types";
 
 export async function streamLlmResponse({
@@ -10,14 +10,16 @@ export async function streamLlmResponse({
   onToken,
   logger,
   abortSignal,
+  systemPrompt,
 }: {
   model: string;
   apiKey: string;
   message: string;
-  chatHistory: HumanMessage[];
+  chatHistory?: HumanMessage[];
   onToken: OnTokenCallback;
   logger: { log: (msg: string) => void; error: (msg: string) => void };
   abortSignal?: AbortSignal;
+  systemPrompt?: string;
 }): Promise<void> {
   logger.log(`Streaming response for query: "${message}"`);
   const streamingLlm = new ChatOpenAI({
@@ -28,10 +30,10 @@ export async function streamLlmResponse({
   });
 
   // Format chat history properly
-  const formattedChatHistory = chatHistory.map(msg => ({
+  const formattedChatHistory = chatHistory?.map(msg => ({
     type: 'human',
     content: typeof msg.content === 'string' ? msg.content : String(msg.content)
-  }));
+  })) || [];
 
   try {
     // Check if the message contains tool execution context (added by agent)
@@ -50,8 +52,8 @@ export async function streamLlmResponse({
         toolContext = parts.slice(1).join('\n\n');
       }
     }
-    // System prompt with formatting instructions
-    const systemContent = `You are a helpful assistant.
+    // System prompt with formatting instructions    // If system prompt is provided, use it; otherwise, use default
+    const systemContent = systemPrompt || `You are a helpful assistant.
 
   Format your response with proper markdown:
   1. Use clear section headings with ### for main sections and #### for subsections
@@ -64,11 +66,22 @@ export async function streamLlmResponse({
   8. Ensure URLs are properly formatted as markdown links: [title](url)
   ${toolContext ? `\n\nWhen answering, use the following context information: ${toolContext}` : ''}`;
 
-    const messages = [
-      { role: 'system', content: systemContent },
-      ...formattedChatHistory.map(msg => ({ role: 'user', content: msg.content })),
-      { role: 'user', content: userQuery },
-    ];
+    let messages;
+    
+    if (chatHistory) {
+      // Standard mode with chat history
+      messages = [
+        { role: 'system', content: systemContent },
+        ...formattedChatHistory.map(msg => ({ role: 'user', content: msg.content })),
+        { role: 'user', content: userQuery },
+      ];
+    } else {
+      // PDF mode with direct question and answer
+      messages = [
+        { role: 'system', content: systemContent },
+        { role: 'user', content: message },
+      ];
+    }
 
     logger.log('Starting LLM stream with messages setup');
 

@@ -145,4 +145,47 @@ This formatting ensures your responses will be easy to read and well-structured.
       onToken(`An error occurred: ${error.message}`, true);
     }
   }
+  async streamPdfResponse(
+    query: string,
+    pdfContent: string,
+    onToken: OnTokenCallback,
+    abortSignal?: AbortSignal
+  ): Promise<void> {
+    try {
+      if (!this.apiKey) {
+        onToken('API key not configured. Please set the LLM_API_KEY environment variable.', true);
+        return;
+      }
+
+      // Signal that we're entering streaming phase
+      onToken('', false, 'streaming');
+      this.logger.log('PDF mode: Starting response generation');      const systemPrompt = `You are a helpful assistant answering questions about the content of a PDF document.
+Below is the relevant content extracted from the PDF based on the user's query:
+
+${pdfContent}
+
+INSTRUCTIONS:
+1. If the user asks about what's in the PDF or for a general overview, summarize the provided content sections to give them a clear understanding of the document.
+2. For specific questions, provide detailed answers using ONLY the information in the provided content.
+3. If the answer is not in the provided content, explain: "Based on the sections of the PDF I have access to, I don't have that specific information. Could you try asking in a different way?"
+4. Format your response using Markdown for better readability when appropriate.
+5. Use bullet points, headings, and other formatting to organize your response clearly.
+6. If quoting from the document, use ">" markdown quote formatting.
+7. BE DETAILED and THOROUGH in your answers, using all relevant information from the provided content.`;
+
+      // Stream the response using the direct LLM without tools
+      await streamLlmResponse({
+        apiKey: this.apiKey,
+        model: this.model,
+        message: query,
+        systemPrompt: systemPrompt,
+        onToken,
+        logger: this.logger,
+        abortSignal
+      });
+    } catch (error) {
+      this.logger.error(`Error streaming PDF response: ${error.message}`);
+      onToken(`Error: ${error.message || 'An unknown error occurred'}`, true);
+    }
+  }
 }

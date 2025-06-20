@@ -1,4 +1,9 @@
-import { IsNotEmpty, IsString, IsOptional } from 'class-validator';
+import { IsNotEmpty, IsString, IsOptional, IsEnum } from 'class-validator';
+
+export enum ChatMode {
+  RESEARCH = 'research',
+  PDF = 'pdf'
+}
 
 export class ChatRequestDto {
   @IsNotEmpty({ message: 'Message cannot be empty' })
@@ -8,10 +13,20 @@ export class ChatRequestDto {
   @IsOptional()
   @IsString()
   sessionId?: string;
+
+  @IsEnum(ChatMode)
+  @IsOptional()
+  mode?: ChatMode = ChatMode.RESEARCH;
 }
 
 export class ChatStreamChunkDto {
   chunk: string;
   done: boolean;
   status?: 'researching' | 'streaming';
+}
+
+export class PdfUploadDto {
+  @IsNotEmpty()
+  @IsString()
+  sessionId: string;
 }
