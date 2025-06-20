@@ -1,0 +1,13 @@
+@echo off
+echo Starting Chat App Backend (Development Mode)...
+echo.
+cd backend
+echo Installing dependencies...
+call npm install
+echo.
+echo Building TypeScript code...
+call npm run build
+echo.
+echo Starting server...
+echo Backend server running in development mode at http://localhost:3000
+call npm run start
