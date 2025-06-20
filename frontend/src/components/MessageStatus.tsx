@@ -16,7 +16,7 @@ const MessageStatus: React.FC<MessageStatusProps> = ({ isResearching, isLoading,
       <div className="flex justify-start">
         <div className="bg-white text-gray-800 border border-gray-200 shadow-sm rounded-2xl rounded-bl-none max-w-[90%] px-4 py-3">
           <div className="flex items-center gap-2 text-left">
-            <span className="font-medium text-gray-700">Researching</span>
+            <span className="font-medium text-gray-700">Researching in the Web</span>
             <div className="flex gap-1">
               <span className="animate-bounce h-1.5 w-1.5 bg-blue-600 rounded-full" style={{ animationDelay: '0ms' }}></span>
               <span className="animate-bounce h-1.5 w-1.5 bg-blue-600 rounded-full" style={{ animationDelay: '300ms' }}></span>

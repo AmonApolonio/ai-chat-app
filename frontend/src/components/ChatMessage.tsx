@@ -19,7 +19,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message }) => {
       >        {message.isUser ? (
           <div className="text-right">{message.text}</div>
         ) : (
-          <div className="prose prose-sm max-w-none text-left">
+          <div className="prose prose-sm max-w-none text-left prose-a:text-blue-600 prose-a:no-underline hover:prose-a:underline">
             <ReactMarkdown>{message.text}</ReactMarkdown>
           </div>
         )}

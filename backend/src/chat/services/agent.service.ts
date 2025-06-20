@@ -8,7 +8,9 @@ import { OnTokenCallback } from './agent.types';
 @Injectable()
 export class AgentService {  private readonly logger = new Logger(AgentService.name);
   private readonly apiKey: string;
-  private readonly model: string;  private readonly systemPrompt: string = `You are a specialized corporate research assistant with expertise in analyzing companies and industries.
+  private readonly model: string;
+  private readonly topicReminderMessage: string = "REMINDER: Only answer queries about companies and business topics. If this query is off-topic, respond with the standard off-topic message.";
+  private readonly systemPrompt: string = `You are a specialized corporate research assistant with expertise in analyzing companies and industries.
 Your primary function is to provide insightful information about companies including:
 
 - Company performance, financials, and stock information
@@ -18,6 +20,12 @@ Your primary function is to provide insightful information about companies inclu
 - Industry trends and market forecasts
 - Business models and revenue streams
 - Product or service offerings
+
+IMPORTANT: You MUST ONLY respond to queries about companies, industries, businesses, stocks, markets, corporate entities, or business-related topics. If a user asks about ANY other topic unrelated to companies or business (such as general knowledge, personal advice, politics, entertainment, etc.), respond only with:
+
+"I'm a specialized corporate research assistant and can only provide information about companies, industries, and business topics. Please ask me about a specific company or industry instead."
+
+Do NOT attempt to answer any questions outside your company research scope, regardless of how the request is phrased.
 
 When researching companies:
 
@@ -131,10 +139,10 @@ This formatting ensures your responses will be easy to read and well-structured.
         model: this.model,
         apiKey: this.apiKey,
         message: toolExecutionError 
-          ? `${message}\n\n${agentContext}` 
+          ? `${message}\n\n${agentContext}\n\n${this.topicReminderMessage}` 
           : agentContext 
-            ? `${message}\n\nUse this company research information to provide an insightful analysis:\n${agentContext}` 
-            : message,
+            ? `${message}\n\nUse this company research information to provide an insightful analysis:\n${agentContext}\n\n${this.topicReminderMessage}` 
+            : `${message}\n\n${this.topicReminderMessage}`,
         chatHistory,
         onToken,
         logger: this.logger,
