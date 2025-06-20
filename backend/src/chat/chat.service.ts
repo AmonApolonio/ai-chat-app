@@ -91,12 +91,12 @@ Format your answer using Markdown for better readability when appropriate.`;
         await this.agentService.streamPdfResponse(
           chatRequest.message,
           pdfContent,
-          (chunk: string, done: boolean, status?: 'researching' | 'streaming') => {
+          (chunk: string, done: boolean, status?: 'researching' | 'streaming' | 'streaming-complete' | 'formatted-complete') => {
             if (isAborted) return;
             const chunkData: ChatStreamChunkDto = { chunk, done, status };
             const eventData = `data: ${JSON.stringify(chunkData)}\n\n`;
             response.write(eventData);
-            if (done) {
+            if (done && (!status || status === 'formatted-complete')) {
               response.end();
             }
           },
@@ -107,12 +107,12 @@ Format your answer using Markdown for better readability when appropriate.`;
         await this.agentService.streamResponse(
           chatRequest.message,
           history,
-          (chunk: string, done: boolean, status?: 'researching' | 'streaming') => {
+          (chunk: string, done: boolean, status?: 'researching' | 'streaming' | 'streaming-complete' | 'formatted-complete') => {
             if (isAborted) return;
             const chunkData: ChatStreamChunkDto = { chunk, done, status };
             const eventData = `data: ${JSON.stringify(chunkData)}\n\n`;
             response.write(eventData);
-            if (done) {
+            if (done && (!status || status === 'formatted-complete')) {
               response.end();
             }
           },

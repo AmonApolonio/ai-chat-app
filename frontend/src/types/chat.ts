@@ -7,6 +7,7 @@ export interface ChatMessage {
   id: string;
   text: string;
   isUser: boolean;
+  isBeingFormatted?: boolean;
 }
 
 export interface ChatRequest {
@@ -18,7 +19,7 @@ export interface ChatRequest {
 export interface ChatStreamChunk {
   chunk: string;
   done: boolean;
-  status?: 'researching' | 'streaming';
+  status?: 'researching' | 'streaming' | 'streaming-complete' | 'formatted-complete';
 }
 
 export interface FileUploadResponse {

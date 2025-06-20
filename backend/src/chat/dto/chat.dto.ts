@@ -22,7 +22,7 @@ export class ChatRequestDto {
 export class ChatStreamChunkDto {
   chunk: string;
   done: boolean;
-  status?: 'researching' | 'streaming';
+  status?: 'researching' | 'streaming' | 'streaming-complete' | 'formatted-complete';
 }
 
 export class PdfUploadDto {

@@ -2,6 +2,58 @@ import { ChatOpenAI } from "@langchain/openai";
 import { type HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { OnTokenCallback } from "./agent.types";
 
+// Function to format the complete answer using the LLM
+async function formatCompletedAnswer({
+  model,
+  apiKey,
+  completeAnswer,
+  logger,
+}: {
+  model: string;
+  apiKey: string;
+  completeAnswer: string;
+  logger: { log: (msg: string) => void; error: (msg: string) => void };
+}): Promise<string> {
+  try {
+    logger.log('Formatting complete answer with LLM');
+    
+    const formattingLlm = new ChatOpenAI({
+      modelName: model,
+      openAIApiKey: apiKey,
+      temperature: 0,
+    });
+
+    const formattingPrompt = `
+You are a formatting assistant. Your job is to improve the readability and visual presentation of the following text for a chat interface.
+Apply proper markdown formatting with:
+- Clear section headings (### for main sections, #### for subsections)
+- Proper paragraph spacing
+- Well-formatted lists with appropriate whitespace
+- Bold and italic text for emphasis where appropriate
+- Properly formatted links
+- Clean code blocks if code is present
+
+DO NOT change the content meaning or add new information. Only improve the formatting.
+
+Text to format:
+${completeAnswer}
+`;
+
+    const response = await formattingLlm.invoke([
+      { role: 'system', content: 'You are a formatting assistant that only improves the visual presentation of text.' },
+      { role: 'user', content: formattingPrompt }
+    ]);
+
+    const formattedAnswer = response.content as string;
+    logger.log('Successfully formatted the answer');
+    return formattedAnswer;
+  } catch (error: any) {
+    logger.error(`Error in formatting complete answer: ${error.message}`);
+    // Return the original answer if formatting fails
+    return completeAnswer;
+  }
+}
+
 export async function streamLlmResponse({
   model,
   apiKey,
@@ -117,11 +169,29 @@ export async function streamLlmResponse({
             completeAnswer += content; // Keep track of the complete answer
           }
         }
-      }
-      onToken('', true);
+      }      // First, signal that streaming is complete with the initial unformatted answer
+      onToken('', true, 'streaming-complete');
       logger.log('Stream completed successfully');
-      logger.log(`Final answer processed`);
-      logger.log(completeAnswer);
+      logger.log(`Initial answer processed`);
+      
+      // Then format the complete answer and send as a separate event
+      logger.log('Formatting the complete answer');
+      try {
+        const formattedCompleteAnswer = await formatCompletedAnswer({
+          model,
+          apiKey,
+          completeAnswer,
+          logger,
+        });
+        // Send the formatted answer as a separate event
+        onToken(formattedCompleteAnswer, true, 'formatted-complete');
+        logger.log('Formatted answer sent to client');
+        logger.log(formattedCompleteAnswer);
+      } catch (formatError) {
+        logger.error(`Error formatting answer: ${formatError.message}`);
+        // If formatting fails, send the original answer as formatted-complete
+        onToken(completeAnswer, true, 'formatted-complete');
+      }
     } catch (streamError) {
       logger.error(`Error in stream processing: ${streamError.message}`);
       throw streamError;

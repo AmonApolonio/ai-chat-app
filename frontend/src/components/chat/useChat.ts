@@ -13,11 +13,12 @@ export const useChat = ({ initialMode, onModeChange }: UseChatProps) => {
       text: 'Hello! I am your AI assistant with two modes:\n\n- **Research Mode**: I can search the web for company information\n\n- **PDF Mode**: Upload a PDF to ask questions about its content',
       isUser: false,
     }
-  ]);
+  ]);  
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
   const [isResearching, setIsResearching] = useState(false);
+  const [isFormatting, setIsFormatting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sessionId, setSessionId] = useState<string>(`session-${Date.now()}`);
   const [currentStreamingMessage, setCurrentStreamingMessage] = useState<string>('');
@@ -329,26 +330,56 @@ export const useChat = ({ initialMode, onModeChange }: UseChatProps) => {
             try {
               const jsonStr = line.substring(6);
               const data = JSON.parse(jsonStr) as ChatStreamChunk;
-              
-              // Handle status updates
+                // Handle status updates
               if (data.status) {
                 if (data.status === 'researching') {
                   setIsResearching(true);
                   setIsStreaming(false);
                 } else if (data.status === 'streaming') {
                   setIsResearching(false);
-                  setIsStreaming(true);
+                  setIsStreaming(true);                } else if (data.status === 'streaming-complete') {
+                  setIsResearching(false);
+                  setIsStreaming(false);
+                  setIsFormatting(true);
+                  // Add message with isBeingFormatted flag
+                  setMessages(prevMessages => [
+                    ...prevMessages.filter(m => m.id !== 'typing-indicator'),
+                    {
+                      id: messageId,
+                      text: accumulatedText,
+                      isUser: false,
+                      isBeingFormatted: true
+                    }
+                  ]);
+                  setCurrentStreamingMessage('');
+                } else if (data.status === 'formatted-complete') {
+                  // Update the existing message with formatted content
+                  setMessages(prevMessages => 
+                    prevMessages.map(msg => 
+                      msg.id === messageId ? {
+                        ...msg,
+                        text: data.chunk || msg.text,
+                        isBeingFormatted: false
+                      } : msg
+                    )
+                  );
+                  setIsFormatting(false);
+                  setIsStreaming(false);
+                  setIsResearching(false);
+                  messageFinalized = true;
                 }
               }
-                // Add the new chunk to accumulated text if it exists
-              if (data.chunk) {
+              
+              // Add the new chunk to accumulated text if it exists
+              if (data.chunk && data.status !== 'formatted-complete') {
                 // eslint-disable-next-line no-loop-func
                 const newText = accumulatedText + data.chunk;
                 accumulatedText = newText;
                 setCurrentStreamingMessage(newText);
               }
-                // If done signal received, complete the message
-              if (data.done) {
+              
+              // If done signal received without special status, complete the message
+              if (data.done && !data.status) {
                 // eslint-disable-next-line no-loop-func
                 setMessages(prevMessages => [
                   ...prevMessages.filter(m => m.id !== 'typing-indicator'),
@@ -526,11 +557,12 @@ export const useChat = ({ initialMode, onModeChange }: UseChatProps) => {
           text: 'Hello! I am your AI assistant with two modes:\n\n- **Research Mode**: I can search the web for company information\n\n- **PDF Mode**: Upload a PDF to ask questions about its content',
           isUser: false,
         }
-      ]);
+      ]);      
       setInputValue('');
       setIsLoading(false);
       setIsStreaming(false);
       setIsResearching(false);
+      setIsFormatting(false);
       setError(null);
       setCurrentStreamingMessage('');
       
@@ -577,10 +609,11 @@ export const useChat = ({ initialMode, onModeChange }: UseChatProps) => {
     // State
     messages,
     inputValue,
-    setInputValue,
+    setInputValue,    
     isLoading,
     isStreaming,
     isResearching,
+    isFormatting,
     error,
     currentStreamingMessage,
     messageContainerRef,

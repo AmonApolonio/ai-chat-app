@@ -14,10 +14,11 @@ const ChatBox: React.FC<ChatBoxProps> = ({ initialMode, onModeChange }) => {
   const {
     messages,
     inputValue,
-    setInputValue,
+    setInputValue, 
     isLoading,
     isStreaming,
     isResearching,
+    isFormatting,
     error,
     currentStreamingMessage,
     messageContainerRef,
@@ -38,26 +39,28 @@ const ChatBox: React.FC<ChatBoxProps> = ({ initialMode, onModeChange }) => {
     handleDragLeave,
     handleDragOver
   } = useChat({ initialMode, onModeChange });
-  
+
   return (
-    <div 
+    <div
       className="w-full max-w-7xl mx-auto flex flex-col h-[calc(100vh-200px)] bg-gray-50 relative"
       onDragEnter={handleDragEnter}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
-    >
-      {/* Message history container */}
-      <ChatMessages 
+    >      
+    {/* Message history container */}      
+    <ChatMessages
         messages={messages}
         isResearching={isResearching}
         isLoading={isLoading}
+        isStreaming={isStreaming}
+        isFormatting={isFormatting}
         currentStreamingMessage={currentStreamingMessage}
         messageContainerRef={messageContainerRef}
       />
 
       {/* Floating toolbar and input section - fixed at bottom center */}
-      <ChatControls 
+      <ChatControls
         error={error}
         chatMode={chatMode}
         pdfFile={pdfFile}
@@ -76,7 +79,7 @@ const ChatBox: React.FC<ChatBoxProps> = ({ initialMode, onModeChange }) => {
         isLoading={isLoading}
         isPdfUploaded={isPdfUploaded}
       />
-      
+
       {/* PDF upload handler */}
       <PdfHandler
         isDragging={isDragging}
