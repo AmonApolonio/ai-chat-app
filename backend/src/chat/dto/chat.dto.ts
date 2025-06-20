@@ -10,11 +10,8 @@ export class ChatRequestDto {
   sessionId?: string;
 }
 
-export class ChatResponseDto {
-  reply: string;
-}
-
 export class ChatStreamChunkDto {
   chunk: string;
   done: boolean;
+  status?: 'researching' | 'streaming';
 }

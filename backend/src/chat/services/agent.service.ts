@@ -1,41 +1,33 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { ChatOpenAI } from "@langchain/openai";
-import { AgentExecutor, createOpenAIFunctionsAgent } from "langchain/agents";
-import { ChatPromptTemplate, MessagesPlaceholder } from "@langchain/core/prompts";
-import { DynamicTool } from "@langchain/core/tools";
 import { type HumanMessage } from "@langchain/core/messages";
+import { createAgent } from './agent.factory';
+import { streamLlmResponse } from './agent.llm';
+import { OnTokenCallback } from './agent.types';
 
 @Injectable()
 export class AgentService {
   private readonly logger = new Logger(AgentService.name);
   private readonly apiKey: string;
   private readonly model: string;
-  private readonly systemPrompt: string = `You are a helpful assistant with access to a tool:
-- current_time: tells the current time and date (always use this for time/date questions)
+  private readonly systemPrompt: string = `You are a helpful assistant.`;
 
-IMPORTANT: When the user asks anything about the current time or date, you MUST use the current_time tool.
-DO NOT try to determine the time yourself - ALWAYS use the current_time tool for those questions.
-
-Examples:
-Q: What time is it?
-A: [use the current_time tool]
-`;
-
-  private agentExecutorPromise: Promise<AgentExecutor> | null = null;
+  private agentExecutorPromise: Promise<any> | null = null;
 
   constructor(private readonly configService: ConfigService) {
     this.logger.log('Initializing AgentService');
-    
     this.apiKey = this.configService.get<string>('LLM_API_KEY');
     this.model = this.configService.get<string>('LLM_MODEL', 'gpt-4o-mini');
-    
     this.logger.log(`Configuration: Model=${this.model}, API Key=${this.apiKey ? 'Set' : 'NOT SET'}`);
-    
     if (!this.apiKey) {
       this.logger.warn('LLM_API_KEY is not set. Agent functionality will not work properly.');
     } else {
-      this.agentExecutorPromise = this.createAgent()
+      this.agentExecutorPromise = createAgent({
+        model: this.model,
+        apiKey: this.apiKey,
+        systemPrompt: this.systemPrompt,
+        logger: this.logger
+      })
         .then(executor => {
           this.logger.log('Agent executor created successfully');
           return executor;
@@ -47,88 +39,7 @@ A: [use the current_time tool]
     }
   }
 
-  private async createAgent(): Promise<AgentExecutor> {
-    try {
-      this.logger.log(`Creating agent with model: ${this.model}`);
-      
-      // Initialize the LLM with configuration to REQUIRE tool usage for time queries
-      const llm = new ChatOpenAI({
-        modelName: this.model,
-        openAIApiKey: this.apiKey,
-        temperature: 0,
-        // Remove modelKwargs.tool_choice to let the agent decide
-      });
-      
-      // Create a simplified time tool that's more likely to execute properly
-      const timeTool = new DynamicTool({
-        name: "current_time",
-        description: "Returns the current time and date.",
-        func: async () => {
-          try {
-            const now = new Date();
-            const timeString = now.toLocaleString();
-            this.logger.log(`✅ Time tool executed: ${timeString}`);
-            return timeString;
-          } catch (error) {
-            this.logger.error(`Error in time tool: ${error.message}`);
-            return new Date().toLocaleString(); // Always return something, even on error
-          }
-        },
-      });
-      
-      const tools = [timeTool];
-      this.logger.log(`Registered ${tools.length} tool: ${tools.map(t => t.name).join(', ')}`);
-      
-      // Create a prompt template that explicitly instructs tool usage
-      const prompt = ChatPromptTemplate.fromMessages([
-        ["system", this.systemPrompt],
-        new MessagesPlaceholder({
-          variableName: "chat_history", 
-          optional: true
-        }),
-        ["human", "{input}"],
-        new MessagesPlaceholder("agent_scratchpad"),
-      ]);
-      
-      // Create the agent with explicit configuration
-      const agent = await createOpenAIFunctionsAgent({
-        llm,
-        tools,
-        prompt
-      });
-      
-      // Create the executor with simplified settings that are more likely to work
-      const executor = AgentExecutor.fromAgentAndTools({
-        agent,
-        tools,
-        verbose: true,
-        returnIntermediateSteps: true,
-        handleParsingErrors: true,
-        maxIterations: 3
-      });
-
-      // Test the time tool directly to verify it works
-      this.testTimeTool(timeTool);
-      
-      return executor;
-    } catch (error) {
-      this.logger.error(`Failed to create agent: ${error.message}`);
-      throw error;
-    }
-  }
-  // Helper method to test the time tool directly
-  private async testTimeTool(tool: DynamicTool): Promise<void> {
-    try {
-      this.logger.log("Testing time tool directly...");
-      const result = await tool.invoke("");
-      this.logger.log(`✅ Time tool test result: ${result}`);
-    } catch (error) {
-      this.logger.error(`❌ Time tool test failed: ${error.message}`);
-    }
-  }
-
-  // New method to stream tokens as they're generated
-  async streamResponse(message: string, chatHistory: HumanMessage[] = [], onToken: (chunk: string, done: boolean) => void): Promise<void> {
+  async streamResponse(message: string, chatHistory: HumanMessage[] = [], onToken: OnTokenCallback, abortSignal?: AbortSignal): Promise<void> {
     try {
       if (!this.apiKey) {
         onToken('API key not configured. Please set the LLM_API_KEY environment variable.', true);
@@ -140,86 +51,64 @@ A: [use the current_time tool]
         return;
       }
 
-      this.logger.log(`Streaming response for query: "${message}"`);
+      // Signal that we're entering research/tool execution phase
+      onToken('', false, 'researching');
+      this.logger.log('Agent entered researching state');
 
-      // Create a streaming-enabled LLM
-      const streamingLlm = new ChatOpenAI({
-        modelName: this.model,
-        openAIApiKey: this.apiKey,
-        temperature: 0,
-        streaming: true,
-      });
+      let agentContext = '';
+      let toolExecutionError = false;
 
-      // Format chat history for the model
-      const formattedChatHistory = chatHistory.map(msg => ({
-        type: 'human',
-        content: typeof msg.content === 'string' ? msg.content : String(msg.content)
-      }));
-
-      // Special case for time-related queries since they need tools
-      if (message.toLowerCase().includes('time')) {
-        // For time queries, we'll handle them directly since tools don't stream well
-        try {
-          // Get the current time
-          const now = new Date().toLocaleString();
-          const timeResponse = `The current time is ${now}`;
-          
-          // Simulate streaming for a better UX
-          const words = timeResponse.split(' ');
-          for (let i = 0; i < words.length; i++) {
-            const isLast = i === words.length - 1;
-            // Stream word by word with spaces
-            await new Promise(resolve => setTimeout(resolve, 50)); // Small delay between words
-            onToken(words[i] + (isLast ? '' : ' '), isLast);
-          }
-          return;
-        } catch (error) {
-          this.logger.error(`Error in time streaming: ${error.message}`);
-          onToken(`The current time is ${new Date().toLocaleString()}`, true);
-          return;
-        }
-      }
-
-      // For non-time queries, use the streaming LLM directly
       try {
-        // Create a simple prompt for direct streaming (bypassing the agent for streaming)
-        const messages = [
-          { role: 'system', content: 'You are a helpful assistant.' },
-          ...formattedChatHistory.map(msg => ({ role: 'user', content: msg.content })),
-          { role: 'user', content: message },
-        ];        // Stream the response directly
-        const stream = await streamingLlm.stream(messages);
-
-        // Process each chunk as it arrives
-        let isFirstChunk = true;
-        for await (const chunk of stream) {          if (chunk.content) {
-            // Convert any content type to string safely
-            let content = '';
-            
-            if (typeof chunk.content === 'string') {
-              content = chunk.content;
-            } else if (Array.isArray(chunk.content)) {
-              // For complex content, extract text parts
-              content = chunk.content
-                .filter(item => typeof item === 'string' || 'text' in item)
-                .map(item => typeof item === 'string' ? item : ('text' in item ? item.text : ''))
-                .join('');
-            }
-            
-            if (content) {
-              onToken(content, false);
-              isFirstChunk = false;
-            }
-          }
-        }
+        // First, call the agent executor to potentially invoke tools
+        const agentExecutor = await this.agentExecutorPromise;
+        const input = {
+          input: message,
+          chat_history: chatHistory,
+          signal: abortSignal
+        };
         
-        // Signal completion
-        onToken('', true);
-      } catch (error) {
-        this.logger.error(`Error in streaming response: ${error.message}`);
-        onToken(`An error occurred while processing your request: ${error.message}`, true);
+        this.logger.log('Running agent executor with input:', message);
+        const result = await agentExecutor.call(input);
+        this.logger.log('Agent execution complete');
+        
+        // Extract useful information from the agent result
+        if (result.intermediateSteps && result.intermediateSteps.length > 0) {
+          // Build context from tool executions
+          agentContext = 'Tool execution results:\n';
+          result.intermediateSteps.forEach(step => {
+            if (step.action && step.observation) {
+              const toolName = step.action.tool || 'unknown_tool';
+              agentContext += `[${toolName}] Input: ${JSON.stringify(step.action.toolInput)}\n`;
+              agentContext += `[${toolName}] Result: ${step.observation}\n\n`;
+            }
+          });
+          this.logger.log(`Generated agent context from ${result.intermediateSteps.length} tool executions`);
+        }
+      } catch (agentError) {
+        this.logger.error(`Error in agent execution: ${agentError.message}`);
+        toolExecutionError = true;
+        agentContext = `Note: There was an error executing tools: ${agentError.message}`;
       }
-    } catch (error) {
+
+      // Signal that we're transitioning to streaming response phase
+      onToken('', false, 'streaming');
+      this.logger.log('Agent entered streaming state');
+
+      // Now stream the response with the enhanced context from tool executions
+      await streamLlmResponse({
+        model: this.model,
+        apiKey: this.apiKey,
+        message: toolExecutionError 
+          ? `${message}\n\n${agentContext}` 
+          : agentContext 
+            ? `${message}\n\nUse this information to help answer: ${agentContext}` 
+            : message,
+        chatHistory,
+        onToken,
+        logger: this.logger,
+        abortSignal
+      });
+    } catch (error: any) {
       this.logger.error(`Error setting up streaming: ${error.message}`);
       onToken(`An error occurred: ${error.message}`, true);
     }

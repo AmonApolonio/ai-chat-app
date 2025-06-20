@@ -9,11 +9,8 @@ export interface ChatRequest {
   sessionId?: string;
 }
 
-export interface ChatResponse {
-  reply: string;
-}
-
 export interface ChatStreamChunk {
   chunk: string;
   done: boolean;
+  status?: 'researching' | 'streaming';
 }
