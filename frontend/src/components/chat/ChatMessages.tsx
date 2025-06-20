@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React from 'react';
 import { ChatMessage } from '../../types/chat';
 import ChatMessageComponent from '../ChatMessage';
 import MessageStatus from '../MessageStatus';

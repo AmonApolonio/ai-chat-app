@@ -1,6 +1,4 @@
 import React from 'react';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faSpinner } from '@fortawesome/free-solid-svg-icons';
 
 interface MessageStatusProps {
   isResearching: boolean;
@@ -16,7 +14,7 @@ const MessageStatus: React.FC<MessageStatusProps> = ({ isResearching, isLoading,
   if (isResearching) {
     return (
       <div className="flex justify-start">
-        <div className="bg-white text-gray-800 border border-gray-200 shadow-sm rounded-2xl rounded-bl-none max-w-[80%] px-4 py-3">
+        <div className="bg-white text-gray-800 border border-gray-200 shadow-sm rounded-2xl rounded-bl-none max-w-[90%] px-4 py-3">
           <div className="flex items-center gap-2 text-left">
             <span className="font-medium text-gray-700">Researching</span>
             <div className="flex gap-1">
@@ -32,7 +30,7 @@ const MessageStatus: React.FC<MessageStatusProps> = ({ isResearching, isLoading,
   if (isLoading && !currentStreamingMessage) {
     return (
       <div className="flex justify-start">
-        <div className="bg-white text-gray-800 border border-gray-200 shadow-sm rounded-2xl rounded-bl-none max-w-[80%] px-4 py-3">
+        <div className="bg-white text-gray-800 border border-gray-200 shadow-sm rounded-2xl rounded-bl-none max-w-[90%] px-4 py-3">
           <div className="flex items-center gap-2 text-left">
             <span className="font-medium text-gray-700">Processing</span>
             <div className="flex gap-1">

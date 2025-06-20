@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, MutableRefObject } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { ChatMessage, ChatRequest, ChatStreamChunk, ChatMode, FileUploadResponse } from '../../types/chat';
 
 interface UseChatProps {
@@ -301,7 +301,7 @@ export const useChat = ({ initialMode, onModeChange }: UseChatProps) => {
       // Process chunks as they arrive
       while (true) {
         const { done, value } = await reader.read();
-        if (done) {
+        if (done) {          
           // Final update to the messages state with the complete response
           if (accumulatedText && !messageFinalized) {
             setMessages(prevMessages => [
@@ -340,16 +340,16 @@ export const useChat = ({ initialMode, onModeChange }: UseChatProps) => {
                   setIsStreaming(true);
                 }
               }
-              
-              // Add the new chunk to accumulated text if it exists
+                // Add the new chunk to accumulated text if it exists
               if (data.chunk) {
+                // eslint-disable-next-line no-loop-func
                 const newText = accumulatedText + data.chunk;
                 accumulatedText = newText;
                 setCurrentStreamingMessage(newText);
               }
-              
-              // If done signal received, complete the message
+                // If done signal received, complete the message
               if (data.done) {
+                // eslint-disable-next-line no-loop-func
                 setMessages(prevMessages => [
                   ...prevMessages.filter(m => m.id !== 'typing-indicator'),
                   {

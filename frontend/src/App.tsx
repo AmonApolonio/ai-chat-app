@@ -17,10 +17,10 @@ function App() {
   const getHeaderTitle = () => {
     switch (chatMode) {
       case ChatMode.PDF:
-        return "PDF Document Assistant";
+        return "Hackett PDF Document Assistant";
       case ChatMode.RESEARCH:
       default:
-        return "Company Research Assistant";
+        return "Hackett Company Research Assistant";
     }
   };
   

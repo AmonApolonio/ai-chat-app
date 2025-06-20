@@ -10,7 +10,7 @@ const StreamingMessage: React.FC<StreamingMessageProps> = ({ text }) => {
   
   return (
     <div className="flex justify-start">      
-    <div className="bg-white text-gray-800 border border-gray-200 shadow-sm rounded-2xl rounded-bl-none max-w-[80%] px-4 py-3 break-words">
+    <div className="bg-white text-gray-800 border border-gray-200 shadow-sm rounded-2xl rounded-bl-none max-w-[90%] px-4 py-3 break-words">
         <div className="prose prose-sm max-w-none text-left">
           <ReactMarkdown>{text}</ReactMarkdown>
         </div>

@@ -11,7 +11,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message }) => {
     <div
       className={`flex ${message.isUser ? 'justify-end' : 'justify-start'}`}
     >      <div 
-        className={`max-w-[80%] rounded-2xl px-4 py-3 break-words ${
+        className={`max-w-[90%] rounded-2xl px-4 py-3 break-words ${
           message.isUser 
             ? 'bg-blue-600 text-white rounded-br-none' 
             : 'bg-white text-gray-800 border border-gray-200 shadow-sm rounded-bl-none'
