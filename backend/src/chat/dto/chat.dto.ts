@@ -13,3 +13,8 @@ export class ChatRequestDto {
 export class ChatResponseDto {
   reply: string;
 }
+
+export class ChatStreamChunkDto {
+  chunk: string;
+  done: boolean;
+}

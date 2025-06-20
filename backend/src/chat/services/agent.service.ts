@@ -116,7 +116,6 @@ A: [use the current_time tool]
       throw error;
     }
   }
-
   // Helper method to test the time tool directly
   private async testTimeTool(tool: DynamicTool): Promise<void> {
     try {
@@ -127,134 +126,102 @@ A: [use the current_time tool]
       this.logger.error(`❌ Time tool test failed: ${error.message}`);
     }
   }
-  
-  async generateResponse(message: string, chatHistory: HumanMessage[] = []): Promise<string> {
+
+  // New method to stream tokens as they're generated
+  async streamResponse(message: string, chatHistory: HumanMessage[] = [], onToken: (chunk: string, done: boolean) => void): Promise<void> {
     try {
       if (!this.apiKey) {
-        return 'API key not configured. Please set the LLM_API_KEY environment variable.';
+        onToken('API key not configured. Please set the LLM_API_KEY environment variable.', true);
+        return;
       }
 
       if (!this.agentExecutorPromise) {
-        return 'Agent not initialized. Please check your configuration.';
+        onToken('Agent not initialized. Please check your configuration.', true);
+        return;
       }
-      
-      this.logger.log(`Processing query: "${message}"`);
-      
-      // If this is a time-related query, use a direct approach
-      if (message.toLowerCase().includes('time')) {
-        this.logger.log("Time-related query detected, using direct tool execution");
-        
-        try {
-          // Get the executor
-          const agentExecutor = await this.agentExecutorPromise;
-          
-          // Format chat history
-          const formattedChatHistory = chatHistory.map(msg => ({
-            type: 'human',
-            content: typeof msg.content === 'string' ? msg.content : String(msg.content)
-          }));
-          
-          // For time queries, force the model to use the tool with explicit instructions
-          const timeMessage = "Please tell me the current time. You MUST use the current_time tool.";
-          
-          // Execute with explicit callbacks
-          const result = await agentExecutor.invoke({
-            input: timeMessage,
-            chat_history: formattedChatHistory
-          });
-          
-          // If we got a result, use it
-          if (result.output && result.output.trim() !== '') {
-            return result.output;
-          }
-          
-          // If tool steps were used, extract the tool result directly
-          if (result.intermediateSteps && result.intermediateSteps.length > 0) {
-            const timeStep = result.intermediateSteps.find(step => 
-              step.action?.tool === 'current_time');
-            
-            if (timeStep && timeStep.observation) {
-              return `The current time is ${timeStep.observation}`;
-            }
-          }
-          
-          // Fallback: Call the time tool directly
-          const timeTool = new DynamicTool({
-            name: "current_time",
-            description: "Returns the current time and date.",
-            func: async () => new Date().toLocaleString()
-          });
-          
-          const timeResult = await timeTool.invoke("");
-          return `The current time is ${timeResult}`;
-        } catch (error) {
-          this.logger.error(`Error handling time query: ${error.message}`);
-          // Direct fallback
-          return `The current time is ${new Date().toLocaleString()}`;
-        }
-      }
-      
-      const agentExecutor = await this.agentExecutorPromise;
-      
-      // Format chat history for the agent
+
+      this.logger.log(`Streaming response for query: "${message}"`);
+
+      // Create a streaming-enabled LLM
+      const streamingLlm = new ChatOpenAI({
+        modelName: this.model,
+        openAIApiKey: this.apiKey,
+        temperature: 0,
+        streaming: true,
+      });
+
+      // Format chat history for the model
       const formattedChatHistory = chatHistory.map(msg => ({
         type: 'human',
         content: typeof msg.content === 'string' ? msg.content : String(msg.content)
       }));
-      
-      // Add detailed logging before execution
-      this.logger.log(`Executing agent with query: "${message}"`);
-      this.logger.log(`Chat history length: ${formattedChatHistory.length}`);
-      
-      // Execute the agent with explicit callbacks for debugging
-      const result = await agentExecutor.invoke({
-        input: message,
-        chat_history: formattedChatHistory
-      }, {
-        callbacks: [
-          {
-            handleToolStart: (tool, input) => {
-              this.logger.log(`Tool ${tool.name} starting with input: ${input}`);
-              return undefined;
-            },
-            handleToolEnd: (output) => {
-              this.logger.log(`Tool returned: ${output}`);
-              return undefined;
-            },
-            handleChainError: (err) => {
-              this.logger.error(`Chain error: ${err.message}`);
-              return undefined;
+
+      // Special case for time-related queries since they need tools
+      if (message.toLowerCase().includes('time')) {
+        // For time queries, we'll handle them directly since tools don't stream well
+        try {
+          // Get the current time
+          const now = new Date().toLocaleString();
+          const timeResponse = `The current time is ${now}`;
+          
+          // Simulate streaming for a better UX
+          const words = timeResponse.split(' ');
+          for (let i = 0; i < words.length; i++) {
+            const isLast = i === words.length - 1;
+            // Stream word by word with spaces
+            await new Promise(resolve => setTimeout(resolve, 50)); // Small delay between words
+            onToken(words[i] + (isLast ? '' : ' '), isLast);
+          }
+          return;
+        } catch (error) {
+          this.logger.error(`Error in time streaming: ${error.message}`);
+          onToken(`The current time is ${new Date().toLocaleString()}`, true);
+          return;
+        }
+      }
+
+      // For non-time queries, use the streaming LLM directly
+      try {
+        // Create a simple prompt for direct streaming (bypassing the agent for streaming)
+        const messages = [
+          { role: 'system', content: 'You are a helpful assistant.' },
+          ...formattedChatHistory.map(msg => ({ role: 'user', content: msg.content })),
+          { role: 'user', content: message },
+        ];        // Stream the response directly
+        const stream = await streamingLlm.stream(messages);
+
+        // Process each chunk as it arrives
+        let isFirstChunk = true;
+        for await (const chunk of stream) {          if (chunk.content) {
+            // Convert any content type to string safely
+            let content = '';
+            
+            if (typeof chunk.content === 'string') {
+              content = chunk.content;
+            } else if (Array.isArray(chunk.content)) {
+              // For complex content, extract text parts
+              content = chunk.content
+                .filter(item => typeof item === 'string' || 'text' in item)
+                .map(item => typeof item === 'string' ? item : ('text' in item ? item.text : ''))
+                .join('');
+            }
+            
+            if (content) {
+              onToken(content, false);
+              isFirstChunk = false;
             }
           }
-        ]
-      });
-      
-      // Check result and provide detailed logging
-      this.logger.log(`Agent result: ${JSON.stringify(result)}`);
-      
-      // If there are no intermediate steps, it means no tools were used
-      if (!result.intermediateSteps || result.intermediateSteps.length === 0) {
-        this.logger.warn('No tools were used in this execution');
-      }
-      
-      // Handle empty responses with a more informative fallback
-      if (!result.output || result.output.trim() === '') {
-        this.logger.warn('Empty response received, using fallback');
-        
-        // Create direct fallback for time queries
-        if (message.toLowerCase().includes('time')) {
-          const now = new Date().toLocaleString();
-          return `The current time is ${now}. (Note: This is a fallback response as the agent tool didn't work properly)`;
         }
         
-        return "I couldn't generate a proper response. If you were asking about the time, the current time is " + 
-               new Date().toLocaleString();
+        // Signal completion
+        onToken('', true);
+      } catch (error) {
+        this.logger.error(`Error in streaming response: ${error.message}`);
+        onToken(`An error occurred while processing your request: ${error.message}`, true);
       }
-      
-      return result.output;
     } catch (error) {
-      this.logger.error(`Error generating response: ${error.message}`);
-      return 'An error occurred while processing your request.';
+      this.logger.error(`Error setting up streaming: ${error.message}`);
+      onToken(`An error occurred: ${error.message}`, true);
     }
   }
 }

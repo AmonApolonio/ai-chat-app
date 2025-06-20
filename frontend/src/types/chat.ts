@@ -12,3 +12,8 @@ export interface ChatRequest {
 export interface ChatResponse {
   reply: string;
 }
+
+export interface ChatStreamChunk {
+  chunk: string;
+  done: boolean;
+}
