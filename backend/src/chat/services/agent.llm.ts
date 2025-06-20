@@ -26,22 +26,22 @@ export async function streamLlmResponse({
     temperature: 0,
     streaming: true,
   });
-  
+
   // Format chat history properly
   const formattedChatHistory = chatHistory.map(msg => ({
     type: 'human',
     content: typeof msg.content === 'string' ? msg.content : String(msg.content)
   }));
-  
+
   try {
     // Check if the message contains tool execution context (added by agent)
-    const hasToolContext = message.includes('Tool execution results:') || 
-                          message.includes('Use this information to help answer:');
-    
+    const hasToolContext = message.includes('Tool execution results:') ||
+      message.includes('Use this information to help answer:');
+
     // Extract the original user query and the tool context, if present
     let userQuery = message;
     let toolContext = '';
-    
+
     if (hasToolContext) {
       // Simple extraction - the agent's format puts the original query first
       const parts = message.split('\n\n');
@@ -50,32 +50,43 @@ export async function streamLlmResponse({
         toolContext = parts.slice(1).join('\n\n');
       }
     }
-    
-    // Create appropriate messages for the LLM
-    const systemContent = toolContext 
-      ? `You are a helpful assistant. When answering, use the following context information: ${toolContext}`
-      : 'You are a helpful assistant.';
-      
+    // System prompt with formatting instructions
+    const systemContent = `You are a helpful assistant.
+
+  Format your response with proper markdown:
+  1. Use clear section headings with ### for main sections and #### for subsections
+  2. Ensure there's a blank line between paragraphs and sections
+  3. For lists, place a blank line before the list starts and after it ends
+  4. Use bullet points (- item) or numbered lists (1. item) with proper spacing
+  5. Highlight important information using **bold** or *italics*
+  6. Avoid using tables, charts, or graphs as they won't render properly
+  7. Present data in simple lists or paragraphs instead of tabular format
+  8. Ensure URLs are properly formatted as markdown links: [title](url)
+  ${toolContext ? `\n\nWhen answering, use the following context information: ${toolContext}` : ''}`;
+
     const messages = [
       { role: 'system', content: systemContent },
       ...formattedChatHistory.map(msg => ({ role: 'user', content: msg.content })),
       { role: 'user', content: userQuery },
     ];
-    
+
     logger.log('Starting LLM stream with messages setup');
-    
+
     try {
       const stream = await streamingLlm.stream(messages);
-      
+
+      // Track the complete answer
+      let completeAnswer = '';
+
       for await (const chunk of stream) {
         if (abortSignal?.aborted) {
           logger.log('Aborting LLM stream');
           break;
         }
-        
+
         if (chunk.content !== undefined && chunk.content !== null) {
           let content = '';
-          
+
           if (typeof chunk.content === 'string') {
             content = chunk.content;
           } else if (Array.isArray(chunk.content)) {
@@ -87,15 +98,17 @@ export async function streamLlmResponse({
               })
               .join('');
           }
-          
           if (content && content.trim() !== '') {
+            // Send the content directly without formatting
             onToken(content, false, 'streaming');
+            completeAnswer += content; // Keep track of the complete answer
           }
         }
       }
-      
-      logger.log('Stream completed successfully');
       onToken('', true);
+      logger.log('Stream completed successfully');
+      logger.log(`Final answer processed`);
+      logger.log(completeAnswer);
     } catch (streamError) {
       logger.error(`Error in stream processing: ${streamError.message}`);
       throw streamError;
@@ -105,3 +118,5 @@ export async function streamLlmResponse({
     onToken(`An error occurred while processing your request: ${error.message}`, true);
   }
 }
+
+
