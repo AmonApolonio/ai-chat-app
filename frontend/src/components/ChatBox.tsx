@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import '../styles/ChatBox.css';
-import '../styles/ModeToggle.css';
 import ReactMarkdown from 'react-markdown';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faPaperPlane, faSpinner, faTimes, faFileUpload, faSearch, faFilePdf } from '@fortawesome/free-solid-svg-icons';
 import { ChatMessage, ChatRequest, ChatStreamChunk, ChatMode, FileUploadResponse } from '../types/chat';
 
 const ChatBox: React.FC = () => {
@@ -487,42 +487,45 @@ const ChatBox: React.FC = () => {
       setError('Failed to clear chat. Please try again.');
     }
   };
-
-  return (    <div className="chat-box">
-      <div className="chat-header">
+  return (
+    <div className="w-full max-w-3xl mx-auto border border-gray-200 rounded-lg overflow-hidden flex flex-col h-[600px] shadow-md">
+      <div className="bg-white py-3 px-4 border-b border-gray-200 flex justify-between items-center">
         {/* Mode Toggle Switch */}
-        <div className="mode-toggle-container">
-          <span className={`mode-toggle-label ${chatMode === ChatMode.RESEARCH ? 'active' : ''}`}>
+        <div className="flex items-center justify-center gap-5 bg-gray-50 p-2.5 rounded-lg">
+          <span className={`text-sm font-medium ${chatMode === ChatMode.RESEARCH ? 'text-blue-500 font-semibold' : 'text-gray-600'}`}>
+            <FontAwesomeIcon icon={faSearch} className="mr-2" />
             Research Mode
           </span>
-          <label className="mode-toggle">
+          <label className="relative inline-flex items-center cursor-pointer">
             <input 
               type="checkbox" 
               checked={chatMode === ChatMode.PDF}
               onChange={handleModeToggle}
               disabled={isStreaming || isResearching || isLoading}
+              className="sr-only peer"
             />
-            <span className="slider"></span>
+            <div className="w-12 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-500"></div>
           </label>
-          <span className={`mode-toggle-label ${chatMode === ChatMode.PDF ? 'active' : ''}`}>
+          <span className={`text-sm font-medium ${chatMode === ChatMode.PDF ? 'text-blue-500 font-semibold' : 'text-gray-600'}`}>
+            <FontAwesomeIcon icon={faFilePdf} className="mr-2" />
             PDF Mode
           </span>
         </div>
         
         {/* Clear Chat Button */}
         <button 
-          className="clear-chat-btn" 
+          className="text-sm font-medium text-gray-600 hover:text-gray-800 bg-gray-100 hover:bg-gray-200 rounded-md px-3 py-1.5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           onClick={handleClearChat}
           disabled={isStreaming || isResearching || isLoading}
         >
+          <FontAwesomeIcon icon={faTimes} className="mr-1.5" />
           Clear Chat
         </button>
       </div>
-      
-      {/* PDF Upload Section (only visible in PDF mode) */}
+        {/* PDF Upload Section (only visible in PDF mode) */}
       {chatMode === ChatMode.PDF && (
         <div 
-          className={`pdf-upload-container ${isDragging ? 'dragging' : ''}`}
+          className={`bg-gray-50 p-4 border-b border-gray-200 text-center ${isDragging ? 'border-2 border-dashed border-blue-400 bg-blue-50' : ''}`}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
@@ -531,63 +534,73 @@ const ChatBox: React.FC = () => {
             type="file" 
             accept=".pdf" 
             onChange={handleFileSelect} 
-            className="pdf-input" 
+            className="hidden" 
             ref={fileInputRef}
           />
           
           {pdfFile ? (
-            <div className="pdf-file-info">
-              <span className="pdf-file-name">{pdfFile.name}</span>
+            <div className="flex items-center justify-center gap-3 bg-white p-3 rounded-md shadow-sm">
+              <FontAwesomeIcon icon={faFilePdf} className="text-red-500 text-lg" />
+              <span className="flex-1 truncate text-gray-700">{pdfFile.name}</span>
               <button 
                 type="button" 
-                className="pdf-file-remove" 
+                className="text-gray-500 hover:text-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
                 onClick={handleRemovePdf}
                 disabled={isStreaming || isResearching || isLoading}
               >
-                ×
+                <FontAwesomeIcon icon={faTimes} />
               </button>
             </div>
           ) : (
             <>
               <button 
                 type="button" 
-                className="pdf-upload-btn" 
+                className="bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded-md inline-flex items-center gap-2 mb-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 onClick={handleUploadClick}
                 disabled={isStreaming || isResearching || isLoading}
               >
+                <FontAwesomeIcon icon={faFileUpload} />
                 Upload PDF
               </button>
-              <p className="pdf-upload-text">or drag and drop your PDF file here</p>
+              <p className="text-sm text-gray-500">or drag and drop your PDF file here</p>
             </>
           )}
         </div>
       )}
-      
-      <div className="message-container" ref={messageContainerRef}>
+        <div className="flex-1 overflow-y-auto p-4 bg-gray-50 space-y-4" ref={messageContainerRef}>
         {messages.map((message) => (
           <div
             key={message.id}
-            className={`message ${message.isUser ? 'user-message' : 'bot-message'}`}
+            className={`flex ${message.isUser ? 'justify-end' : 'justify-start'}`}
           >
-            <div className="message-bubble">
+            <div 
+              className={`max-w-[85%] rounded-2xl px-4 py-3 break-words ${
+                message.isUser 
+                  ? 'bg-blue-500 text-white rounded-br-md' 
+                  : 'bg-white text-gray-800 border border-gray-200 shadow-sm rounded-bl-md'
+              }`}
+            >
               {message.isUser ? (
-                message.text
+                <div>{message.text}</div>
               ) : (
-                <ReactMarkdown>{message.text}</ReactMarkdown>
+                <div className="prose prose-sm max-w-none">
+                  <ReactMarkdown>{message.text}</ReactMarkdown>
+                </div>
               )}
             </div>
           </div>
         ))}
-        
-        {/* Show researching indicator */}
+          {/* Show researching indicator */}
         {isResearching && (
-          <div className="message bot-message">
-            <div className="message-bubble researching">
-              <div className="researching-text">Researching</div>
-              <div className="research-dots">
-                <span className="dot"></span>
-                <span className="dot"></span>
-                <span className="dot"></span>
+          <div className="flex justify-start">
+            <div className="bg-white text-gray-800 border border-gray-200 shadow-sm rounded-2xl rounded-bl-md max-w-[85%] px-4 py-3">
+              <div className="flex items-center gap-2">
+                <span className="font-medium text-gray-700">Researching</span>
+                <div className="flex gap-1">
+                  <span className="animate-bounce h-1.5 w-1.5 bg-blue-500 rounded-full" style={{ animationDelay: '0ms' }}></span>
+                  <span className="animate-bounce h-1.5 w-1.5 bg-blue-500 rounded-full" style={{ animationDelay: '300ms' }}></span>
+                  <span className="animate-bounce h-1.5 w-1.5 bg-blue-500 rounded-full" style={{ animationDelay: '600ms' }}></span>
+                </div>
               </div>
             </div>
           </div>
@@ -595,24 +608,35 @@ const ChatBox: React.FC = () => {
         
         {/* Show streaming message as it comes in */}
         {currentStreamingMessage && (
-          <div className="message bot-message">
-            <div className="message-bubble">
-              <ReactMarkdown>{currentStreamingMessage}</ReactMarkdown>
+          <div className="flex justify-start">
+            <div className="bg-white text-gray-800 border border-gray-200 shadow-sm rounded-2xl rounded-bl-md max-w-[85%] px-4 py-3 break-words">
+              <div className="prose prose-sm max-w-none">
+                <ReactMarkdown>{currentStreamingMessage}</ReactMarkdown>
+              </div>
             </div>
           </div>
         )}
         
         {/* Show loading indicator only when not streaming or researching */}
         {isLoading && !currentStreamingMessage && !isResearching && (
-          <div className="message bot-message">
-            <div className="message-bubble typing">Typing...</div>
+          <div className="flex justify-start">
+            <div className="bg-white text-gray-800 border border-gray-200 shadow-sm rounded-2xl rounded-bl-md max-w-[85%] px-4 py-3">
+              <div className="flex items-center gap-2">
+                <span className="font-medium text-gray-700">Typing</span>
+                <div className="flex gap-1">
+                  <span className="animate-bounce h-1.5 w-1.5 bg-gray-500 rounded-full" style={{ animationDelay: '0ms' }}></span>
+                  <span className="animate-bounce h-1.5 w-1.5 bg-gray-500 rounded-full" style={{ animationDelay: '300ms' }}></span>
+                  <span className="animate-bounce h-1.5 w-1.5 bg-gray-500 rounded-full" style={{ animationDelay: '600ms' }}></span>
+                </div>
+              </div>
+            </div>
           </div>
         )}
       </div>
       
-      {error && <div className="error-message">{error}</div>}
+      {error && <div className="bg-red-100 text-red-700 px-4 py-2 text-center text-sm">{error}</div>}
       
-      <form onSubmit={handleSubmit} className="input-form">
+      <form onSubmit={handleSubmit} className="flex items-center p-3 border-t border-gray-200 bg-white">
         <input
           type="text"
           value={inputValue}
@@ -620,7 +644,7 @@ const ChatBox: React.FC = () => {
           placeholder={chatMode === ChatMode.RESEARCH 
             ? "Type a company name to research..." 
             : "Ask a question about the uploaded PDF..."}
-          className="message-input"
+          className="flex-1 border border-gray-300 rounded-l-md py-2 px-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:text-gray-500"
           autoFocus
           disabled={isStreaming || isResearching}
         />
@@ -628,16 +652,22 @@ const ChatBox: React.FC = () => {
           <button 
             type="button" 
             onClick={handleStopStream} 
-            className="send-button stop-button"
+            className="bg-red-500 hover:bg-red-600 text-white font-medium py-2 px-4 rounded-r-md flex items-center"
           >
+            <FontAwesomeIcon icon={faTimes} className="mr-2" />
             Stop
           </button>
         ) : (
           <button 
             type="submit" 
             disabled={isLoading || !inputValue.trim() || (chatMode === ChatMode.PDF && !isPdfUploaded)} 
-            className="send-button"
+            className="bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded-r-md flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
           >
+            {isLoading ? (
+              <FontAwesomeIcon icon={faSpinner} className="mr-2 animate-spin" />
+            ) : (
+              <FontAwesomeIcon icon={faPaperPlane} className="mr-2" />
+            )}
             Send
           </button>
         )}
