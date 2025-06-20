@@ -325,3 +325,33 @@
     opacity: 1;
   }
 }
+
+.chat-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px;
+  border-bottom: 1px solid #ddd;
+  background-color: #f9f9f9;
+}
+
+.clear-chat-btn {
+  background-color: #ff5f57;
+  color: white;
+  border: none;
+  border-radius: 20px;
+  padding: 8px 16px;
+  font-size: 14px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.clear-chat-btn:hover:not(:disabled) {
+  background-color: #e04a47;
+}
+
+.clear-chat-btn:disabled {
+  background-color: #ffb1ae;
+  cursor: not-allowed;
+}

@@ -17,7 +17,7 @@ const ChatBox: React.FC = () => {
   const [isStreaming, setIsStreaming] = useState(false);
   const [isResearching, setIsResearching] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [sessionId] = useState<string>(`session-${Date.now()}`);
+  const [sessionId, setSessionId] = useState<string>(`session-${Date.now()}`);
   const [currentStreamingMessage, setCurrentStreamingMessage] = useState<string>('');
   const messageContainerRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -207,6 +207,8 @@ const ChatBox: React.FC = () => {
       }
     }
   };
+  
+  // Handle clearing the entire chat
   
   // Handle clicking the upload button
   const handleUploadClick = () => {
@@ -434,27 +436,87 @@ const ChatBox: React.FC = () => {
       setIsStreaming(false);
       setIsResearching(false);
     }
+  };  // Clear the chat history and reset the session
+  const handleClearChat = async () => {
+    try {
+      // Stop any ongoing streaming responses
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+        abortControllerRef.current = null;
+      }
+      
+      // Clean up all PDF files on the backend
+      const response = await fetch('http://localhost:3000/chat/cleanup-all-pdfs', {
+        method: 'POST'
+      });
+      
+      if (!response.ok) {
+        console.error('Failed to cleanup PDF files during chat clear');
+      }
+      
+      // Generate a new session ID
+      const newSessionId = `session-${Date.now()}`;
+      setSessionId(newSessionId);
+      console.log('Created new session ID:', newSessionId);
+      
+      // Reset messages to initial state
+      setMessages([
+        {
+          id: 'welcome-message',
+          text: 'Hello! I am your AI assistant with two modes:\n\n- **Research Mode**: I can search the web for company information\n\n- **PDF Mode**: Upload a PDF to ask questions about its content',
+          isUser: false,
+        }
+      ]);
+      setInputValue('');
+      setIsLoading(false);
+      setIsStreaming(false);
+      setIsResearching(false);
+      setError(null);
+      setCurrentStreamingMessage('');
+      
+      // Reset PDF state
+      setPdfFile(null);
+      setIsPdfUploaded(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+      
+      console.log('Chat cleared successfully, all states reset');
+    } catch (error) {
+      console.error('Error clearing chat:', error);
+      setError('Failed to clear chat. Please try again.');
+    }
   };
 
-  return (
-    <div className="chat-box">
-      {/* Mode Toggle Switch */}
-      <div className="mode-toggle-container">
-        <span className={`mode-toggle-label ${chatMode === ChatMode.RESEARCH ? 'active' : ''}`}>
-          Research Mode
-        </span>
-        <label className="mode-toggle">
-          <input 
-            type="checkbox" 
-            checked={chatMode === ChatMode.PDF}
-            onChange={handleModeToggle}
-            disabled={isStreaming || isResearching || isLoading}
-          />
-          <span className="slider"></span>
-        </label>
-        <span className={`mode-toggle-label ${chatMode === ChatMode.PDF ? 'active' : ''}`}>
-          PDF Mode
-        </span>
+  return (    <div className="chat-box">
+      <div className="chat-header">
+        {/* Mode Toggle Switch */}
+        <div className="mode-toggle-container">
+          <span className={`mode-toggle-label ${chatMode === ChatMode.RESEARCH ? 'active' : ''}`}>
+            Research Mode
+          </span>
+          <label className="mode-toggle">
+            <input 
+              type="checkbox" 
+              checked={chatMode === ChatMode.PDF}
+              onChange={handleModeToggle}
+              disabled={isStreaming || isResearching || isLoading}
+            />
+            <span className="slider"></span>
+          </label>
+          <span className={`mode-toggle-label ${chatMode === ChatMode.PDF ? 'active' : ''}`}>
+            PDF Mode
+          </span>
+        </div>
+        
+        {/* Clear Chat Button */}
+        <button 
+          className="clear-chat-btn" 
+          onClick={handleClearChat}
+          disabled={isStreaming || isResearching || isLoading}
+        >
+          Clear Chat
+        </button>
       </div>
       
       {/* PDF Upload Section (only visible in PDF mode) */}
