@@ -8,8 +8,6 @@ import { MulterModule } from '@nestjs/platform-express';
 @Module({
   imports: [
     MulterModule.register({
-      dest: './uploads',
-      storage: undefined, // Use memory storage only
       limits: {
         fileSize: 10 * 1024 * 1024, // 10 MB
       },
@@ -18,4 +16,4 @@ import { MulterModule } from '@nestjs/platform-express';
   controllers: [ChatController],
   providers: [ChatService, AgentService, PdfService],
 })
-export class ChatModule {}
+export class ChatModule { }

@@ -2,6 +2,12 @@
 echo Starting Chat Application in Development Mode
 echo =============================================
 
+REM Create uploads directory if it doesn't exist
+if not exist ".\backend\uploads" (
+  echo Creating uploads directory...
+  mkdir ".\backend\uploads"
+)
+
 REM Check if the environment file exists in main folder
 if not exist ".\.env" (
   echo Creating .env file from template...

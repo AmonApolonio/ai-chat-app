@@ -14,25 +14,30 @@ import * as fsSync from 'fs';
 
 @Injectable()
 export class PdfService {
-  private readonly logger = new Logger(PdfService.name);
+  private readonly logger = new Logger(PdfService.name);  
   private readonly apiKey: string;
-  private readonly uploadDir = path.join(process.cwd(), 'uploads');
+  private readonly uploadDir = path.resolve(process.env.UPLOADS_DIR || path.join(process.cwd(), 'uploads'));
   private sessionDocuments: Map<string, MemoryVectorStore> = new Map();
 
   constructor(private configService: ConfigService) {
     this.apiKey = this.configService.get<string>('LLM_API_KEY');
     this.ensureUploadDirExists();
   }
-
   private async ensureUploadDirExists(): Promise<void> {
     try {
+      this.logger.log(`Ensuring upload directory exists at: ${this.uploadDir}`);
       await fs.mkdir(this.uploadDir, { recursive: true });
+      // Check if directory is writable
+      const testFile = path.join(this.uploadDir, '.write-test');
+      await fs.writeFile(testFile, 'test');
+      await fs.unlink(testFile);
+      this.logger.log('Upload directory is writable');
     } catch (error) {
-      this.logger.error(`Error creating upload directory: ${error.message}`);
+      this.logger.error(`Error with upload directory: ${error.message}`);
+      this.logger.error(`Error stack: ${error.stack}`);
     }
   }
-  
-  async processFile(file: Express.Multer.File, sessionId: string): Promise<boolean> {
+    async processFile(file: Express.Multer.File, sessionId: string): Promise<boolean> {
     try {
       // Validate file exists
       if (!file || !file.path) {
@@ -41,6 +46,24 @@ export class PdfService {
       }
       
       this.logger.log(`Processing PDF file: ${file.originalname}, stored at: ${file.path}`);
+      this.logger.log(`Upload directory is: ${this.uploadDir}`);
+      this.logger.log(`File details: ${JSON.stringify({
+        filename: file.filename,
+        originalname: file.originalname,
+        size: file.size,
+        mimetype: file.mimetype,
+        destination: file.destination
+      })}`);
+      
+      // Check if file exists before reading
+      try {
+        await fs.access(file.path);
+        this.logger.log(`Confirmed file exists at path: ${file.path}`);
+      } catch (error) {
+        this.logger.error(`File does not exist at path: ${file.path}`);
+        this.logger.error(`File access error: ${error.message}`);
+        return false;
+      }
       
       // File is already on disk, so read it directly
       const dataBuffer = await fs.readFile(file.path);

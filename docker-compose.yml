@@ -13,10 +13,11 @@ services:
     environment:
       - LLM_API_KEY=${LLM_API_KEY}
       - LLM_MODEL=${LLM_MODEL:-gpt-4o-mini}
+      - UPLOADS_DIR=/app/uploads
     env_file:
       - ./.env
     volumes:
-      - ./backend/uploads:/app/uploads
+      - ./backend/uploads:/app/uploads:rw
     restart: unless-stopped
 
   frontend:
@@ -25,9 +26,9 @@ services:
       dockerfile: Dockerfile
     container_name: chat-frontend
     ports:
-      - "3000:3000"
+      - "3000:80"
     expose:
-      - "3000"
+      - "80"
     depends_on:
       - backend
     restart: unless-stopped

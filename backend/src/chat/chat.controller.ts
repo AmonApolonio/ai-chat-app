@@ -9,10 +9,11 @@ import * as path from 'path';
 import * as fs from 'fs';
 
 // Ensure uploads directory exists
-const uploadsDir = path.join(process.cwd(), 'uploads');
+const uploadsDir = path.resolve(process.env.UPLOADS_DIR || path.join(process.cwd(), 'uploads'));
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
+console.log(`Using uploads directory: ${uploadsDir}`);
 
 function setupAbortOnClientDisconnect(request: Request, response: Response): AbortController {
   const abortController = new AbortController();
@@ -43,14 +44,13 @@ export class ChatController {
     const abortController = setupAbortOnClientDisconnect(request, response);
     await this.chatService.streamResponse(chatRequest, response, abortController.signal);
   }  
-  
-  @Post('upload-pdf')
+    @Post('upload-pdf')
   @HttpCode(200)
   @UseInterceptors(
     FileInterceptor('file', {
       limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
       storage: diskStorage({
-        destination: './uploads',
+        destination: uploadsDir,
         filename: (req, file, cb) => {
           // Create a safe filename with session ID
           const sessionId = req.body.sessionId || 'unknown';

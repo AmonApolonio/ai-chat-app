@@ -1,5 +1,12 @@
 #!/bin/bash
 
+# Create uploads directory if it doesn't exist
+if [ ! -d "./backend/uploads" ]; then
+    echo -e "\033[33mCreating uploads directory...\033[0m"
+    mkdir -p ./backend/uploads
+    chmod 777 ./backend/uploads
+fi
+
 # Check for .env file
 if [ ! -f ".env" ]; then
     if [ -f ".env.example" ]; then

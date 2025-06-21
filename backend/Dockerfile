@@ -23,8 +23,11 @@ WORKDIR /app
 COPY --from=build /app/package*.json ./
 COPY --from=build /app/dist ./dist
 
-# Create uploads directory
+# Create uploads directory with proper permissions
 RUN mkdir -p /app/uploads && chmod 777 /app/uploads
+
+# Set default uploads directory environment variable
+ENV UPLOADS_DIR=/app/uploads
 
 # Install Python and build tools needed for node-gyp
 RUN apk add --no-cache python3 make g++
