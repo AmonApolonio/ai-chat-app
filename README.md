@@ -1,82 +1,126 @@
-# Live-Coding Assignment (Interview Session)
+# Chat App with PDF Support
 
-## Goal  
-Build a **tiny chat application** in two parts—backend (NestJS) and frontend (React)—that lets a user send a message and receive an automated reply.
+This is a chat application with PDF document processing capability. The app features a React frontend and a NestJS backend, using LangChain and OpenAI for intelligent chat responses and PDF document analysis.
 
----
+## Features
 
-## Part A – Backend (NestJS)  
-| Requirement | Details |
-|-------------|---------|
-| **Route** | `POST /chat` |
-| **Request body** | `{ "message": "string" }` (JSON) |
-| **Validation** | Reject empty or missing `message` with **400 Bad Request** |
-| **Response** | `{ "reply": "string" }` – for now, any deterministic reply (e.g. echo the message in uppercase or prefix `"Bot: "`). |
-| **Tech constraints** | *TypeScript only* · Use NestJS controllers, services, DTOs & `ValidationPipe` · No database—everything in memory |
-| **Bonus** | Simple rate-limit guard (≤ 5 req/min per IP) · Lightweight `Dockerfile` exposing port `3000` |
+- Real-time chat application
+- PDF document upload and analysis
+- AI-powered responses using OpenAI
+- Rate limiting guard for API protection
+- Web search capability with LangChain agent
+- Modern React UI with Tailwind CSS
+- Docker support for deployment
 
-**What we’ll evaluate**
+## Prerequisites
 
-1. Project structure (`app.module.ts`, `chat.controller.ts`, `chat.service.ts`).  
-2. Correct HTTP status codes and DTO validation.  
-3. Code readability & running commentary while you code.  
-4. (Bonus) Containerization quality.
+- Node.js 18+ 
+- npm or yarn
+- OpenAI API Key (required for chat functionality)
+- Docker and Docker Compose (for deployment)
 
----
+## Project Structure
 
-## Part B – Frontend (React)
+- `frontend/` - React application with Tailwind CSS
+- `backend/` - NestJS application with LangChain integration
+- `docker-compose.yml` - Docker Compose configuration for production deployment
 
-| Requirement | Details |
-|-------------|---------|
-| **Component** | `ChatBox` (React 18+, hooks, TypeScript) |
-| **UI** | Text input + **Send** button · Scrollable message area (user on right, bot on left is fine). |
-| **Behaviour** | 1. `POST /chat` with the user message.<br>2. Show “Typing…” while waiting.<br>3. Append bot reply to conversation.<br>4. Clear & refocus the input. |
-| **Error handling** | Inline error for 400 (“Message cannot be empty.”) & network failures (“Connection lost, please retry.”). |
-| **Styling** | Minimal CSS or Tailwind—no external UI kits needed. |
-| **Bonus** | Auto-scroll to newest message · Disable **Send** when input is empty · Submit with **Enter** key. |
+## Quick Start - Local Development
 
-**What we’ll evaluate**
+### Running with Script
 
-1. Clean state management (`useState`, `useEffect`).  
-2. Type safety for request/response shapes.  
-3. Smooth UX & graceful error handling.  
-4. Code clarity and naming.
+1. Create and configure the environment file:
+   ```
+   copy .env.example .env
+   ```
+   Then edit `.env` to add your OpenAI API key
 
-⏱ **Suggested time**: 15 min backend + 15 min frontend.
+2. Start the application:
+   ```
+   ./start-dev.bat   # Windows
+   ./start-dev.sh    # macOS/Linux
+   ```
 
----
+3. Access the app at http://localhost:3000
 
-# Take-Home Assignment: LLM Integration
+### Running with VS Code Tasks
 
-> **Extend your chat app by connecting it to an LLM service (Google Gemini is free) so users can ask domain-specific questions and get meaningful answers.**
+1. Create and configure the environment file as shown above
 
-## 1 – Choose an LLM Provider  
-Google Gemini preferred, but OpenAI, Cohere, etc. are fine if you have access.
+2. Run the VS Code task:
+   - Open Command Palette (Ctrl+Shift+P)
+   - Select "Tasks: Run Task" 
+   - Choose "Start Chat App"
 
-## 2 – Backend Changes (NestJS)  
-- Create `LlmService` that forwards the user’s **message** to the LLM and retrieves the answer.  
-- Use **env vars** (`LLM_API_KEY`, `LLM_MODEL`, …)—do **not** hard-code secrets.  
-- Return the LLM’s reply as `{ "reply": "…" }`.  
-- Keep existing DTO validation.
+### Running Manually
 
-## 3 – Domain Focus  
-Prompt the model to act as an **expert in a single topic** of your choice (e.g. Argentine/Brazilian/Dominican cuisine, front-end testing, classic movies). Off-topic questions should trigger a polite refusal or redirection.
+#### Backend Setup
 
-## 4 – Frontend Changes (React)  
-No UI overhaul needed—just display the richer reply and keep the loading indicator.
+1. Navigate to the backend directory:
+   ```
+   cd backend
+   ```
 
-## 5 – Testing  
-- Supply **three sample questions** (with expected answer snippets) in your README.  
-- Optional: a Jest test mocking the LLM call.
+2. Create the environment file in the root directory if needed:
+   ```
+   cd ..
+   copy .env.example .env
+   ```
 
-## 6 – Delivery  
-- Push to a public repo or share a zip.  
-- Include a concise **README** with setup steps (`npm install`, `docker compose up`, `env.example`).
+3. Install and start:
+   ```
+   npm install
+   npm run start:dev
+   ```
 
-## 7 – Bonus Points  
-- Stream tokens to the client for a “typing” effect.  
-- Rate-limit to protect your free quota.
+The backend will be available at http://localhost:5000
 
-🕒 **Deadline:** 48 hours (let us know if you need an extension).  
-Good luck—and have fun exploring LLMs!
- 
+#### Frontend Setup
+
+1. Navigate to the frontend directory:
+   ```
+   cd frontend
+   ```
+
+2. Install and start:
+   ```
+   npm install
+   npm start
+   ```
+
+The frontend will be available at http://localhost:3000
+
+## Docker Deployment
+
+To run the application using Docker:
+
+1. Create the environment file:
+   ```
+   copy .env.example .env
+   ```
+
+2. Edit the `.env` file and add your OpenAI API key:
+   ```
+   LLM_API_KEY=your_openai_api_key
+   ```
+
+3. Build and start the containers:
+   ```
+   docker-compose build --no-cache
+   docker compose up -d
+   ```
+
+4. Access the application at http://localhost:3000
+
+### Stopping Docker Services
+
+```
+docker compose down
+```
+
+## Environment Variables
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| LLM_API_KEY | OpenAI API Key | (required) |
+| LLM_MODEL | OpenAI Model to use | gpt-4o-mini |

@@ -47,7 +47,7 @@ export const useChat = ({ initialMode, onModeChange }: UseChatProps) => {
     const cleanupBeforeUnload = async () => {
       try {
         // Always clean up ALL files on page unload
-        navigator.sendBeacon('http://localhost:3000/chat/cleanup-all-pdfs');
+        navigator.sendBeacon('http://localhost:5000/chat/cleanup-all-pdfs');
         console.log('Cleanup request for ALL files sent on page unload');
       } catch (error) {
         console.error('Error sending cleanup request:', error);
@@ -59,7 +59,7 @@ export const useChat = ({ initialMode, onModeChange }: UseChatProps) => {
     return () => {
       window.removeEventListener('beforeunload', cleanupBeforeUnload);
       // Also clean up when component unmounts - clean ALL files
-      fetch('http://localhost:3000/chat/cleanup-all-pdfs', {
+      fetch('http://localhost:5000/chat/cleanup-all-pdfs', {
         method: 'POST'
       }).catch(err => console.error('Error cleaning up on unmount:', err));
     };
@@ -213,7 +213,7 @@ export const useChat = ({ initialMode, onModeChange }: UseChatProps) => {
       // Debug the form data
       console.log('FormData created with file and sessionId:', sessionId);
       
-      const response = await fetch('http://localhost:3000/chat/upload-pdf', {
+      const response = await fetch('http://localhost:5000/chat/upload-pdf', {
         method: 'POST',
         body: formData,
         // Don't set Content-Type header when using FormData
@@ -251,7 +251,7 @@ export const useChat = ({ initialMode, onModeChange }: UseChatProps) => {
   const handleRemovePdf = async () => {
     try {
       // Clean up all PDF files, not just the current session
-      const response = await fetch('http://localhost:3000/chat/cleanup-all-pdfs', {
+      const response = await fetch('http://localhost:5000/chat/cleanup-all-pdfs', {
         method: 'POST'
       });
       
@@ -483,7 +483,7 @@ export const useChat = ({ initialMode, onModeChange }: UseChatProps) => {
       abortControllerRef.current = new AbortController();
       const signal = abortControllerRef.current.signal;
 
-      const response = await fetch('http://localhost:3000/chat', {
+      const response = await fetch('http://localhost:5000/chat', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -537,7 +537,7 @@ export const useChat = ({ initialMode, onModeChange }: UseChatProps) => {
       }
       
       // Clean up all PDF files on the backend
-      const response = await fetch('http://localhost:3000/chat/cleanup-all-pdfs', {
+      const response = await fetch('http://localhost:5000/chat/cleanup-all-pdfs', {
         method: 'POST'
       });
       

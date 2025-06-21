@@ -13,8 +13,8 @@ async function bootstrap() {
     whitelist: true,
     forbidNonWhitelisted: true,
   }));
-  await app.listen(3000);
-  console.log('NestJS backend running on http://localhost:3000');
+  await app.listen(5000);
+  console.log('NestJS backend running on http://localhost:5000');
 }
 
 bootstrap();
