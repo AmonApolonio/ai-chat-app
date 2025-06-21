@@ -18,15 +18,15 @@
 			},
 			"windows": {
 				"command": "cmd.exe",
-				"args": ["/c", "${workspaceFolder}\\start-dev.bat"]
+				"args": ["/c", "${workspaceFolder}\\start-application.bat"]
 			},
 			"osx": {
 				"command": "bash",
-				"args": ["-c", "${workspaceFolder}/start-dev.sh"]
+				"args": ["-c", "${workspaceFolder}/start-application.sh"]
 			},
 			"linux": {
 				"command": "bash",
-				"args": ["-c", "${workspaceFolder}/start-dev.sh"]
+				"args": ["-c", "${workspaceFolder}/start-application.sh"]
 			}
 		}
 	]

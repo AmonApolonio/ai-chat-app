@@ -26,8 +26,8 @@ set FRONTEND_PORT=3000
 
 REM Direct PowerShell command to launch both services
 echo Starting backend and frontend in separate terminals...
-powershell.exe -Command "Start-Process powershell -ArgumentList '-NoExit', '-Command', \"cd '%~dp0backend'; npm install; npm run start:dev\"" 
-powershell.exe -Command "Start-Process powershell -ArgumentList '-NoExit', '-Command', \"cd '%~dp0frontend'; `$env:PORT='%FRONTEND_PORT%'; npm install; npm start\""
+powershell.exe -Command "Start-Process powershell -ArgumentList '-NoExit', '-Command', \"cd '%~dp0backend'; npm install; echo 'Cleaning previous build...'; if (Test-Path dist) { Remove-Item -Recurse -Force dist }; echo 'Building project...'; npm run build; if (Test-Path dist/main.js) { echo 'Build successful, starting server...'; npm run start } else { echo 'Build failed! main.js not found' }\""
+powershell.exe -Command "Start-Process powershell -ArgumentList '-NoExit', '-Command', \"cd '%~dp0frontend'; `$env:PORT='%FRONTEND_PORT%'; npm install; echo 'Cleaning previous build...'; if (Test-Path build) { Remove-Item -Recurse -Force build }; echo 'Building project...'; npm run build; echo 'Build completed, starting development server...'; npm start\""
 
 echo Application started in separate terminals.
 echo Access the frontend at http://localhost:%FRONTEND_PORT%

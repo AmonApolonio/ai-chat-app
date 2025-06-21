@@ -301,15 +301,16 @@ export const useChat = ({ initialMode, onModeChange }: UseChatProps) => {
     try {
       // Process chunks as they arrive
       while (true) {
-        const { done, value } = await reader.read();
+        const { done, value } = await reader.read();        
         if (done) {          
           // Final update to the messages state with the complete response
           if (accumulatedText && !messageFinalized) {
+            const finalAccumulatedText = accumulatedText;
             setMessages(prevMessages => [
               ...prevMessages.filter(m => m.id !== 'typing-indicator'),
               {
                 id: messageId,
-                text: accumulatedText,
+                text: finalAccumulatedText,
                 isUser: false
               }
             ]);
@@ -341,12 +342,12 @@ export const useChat = ({ initialMode, onModeChange }: UseChatProps) => {
                   setIsResearching(false);
                   setIsStreaming(false);
                   setIsFormatting(true);
-                  // Add message with isBeingFormatted flag
+                  const textToUse = accumulatedText;
                   setMessages(prevMessages => [
                     ...prevMessages.filter(m => m.id !== 'typing-indicator'),
                     {
                       id: messageId,
-                      text: accumulatedText,
+                      text: textToUse,
                       isUser: false,
                       isBeingFormatted: true
                     }
@@ -369,23 +370,20 @@ export const useChat = ({ initialMode, onModeChange }: UseChatProps) => {
                   messageFinalized = true;
                 }
               }
-              
-              // Add the new chunk to accumulated text if it exists
+                // Add the new chunk to accumulated text if it exists
               if (data.chunk && data.status !== 'formatted-complete') {
-                // eslint-disable-next-line no-loop-func
                 const newText = accumulatedText + data.chunk;
                 accumulatedText = newText;
                 setCurrentStreamingMessage(newText);
               }
-              
-              // If done signal received without special status, complete the message
+                // If done signal received without special status, complete the message
               if (data.done && !data.status) {
-                // eslint-disable-next-line no-loop-func
+                const finalText = accumulatedText;
                 setMessages(prevMessages => [
                   ...prevMessages.filter(m => m.id !== 'typing-indicator'),
                   {
                     id: messageId,
-                    text: accumulatedText,
+                    text: finalText,
                     isUser: false
                   }
                 ]);

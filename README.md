@@ -37,8 +37,8 @@ This is a chat application with PDF document processing capability. The app feat
 
 2. Start the application:
    ```
-   ./start-dev.bat   # Windows
-   ./start-dev.sh    # macOS/Linux
+   ./start-application.bat   # Windows
+   ./start-application.sh    # macOS/Linux
    ```
 
 3. Access the app at http://localhost:3000

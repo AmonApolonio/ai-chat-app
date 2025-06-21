@@ -1,4 +1,4 @@
-import React, { useRef, MutableRefObject } from 'react';
+import React, { MutableRefObject } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faFileUpload } from '@fortawesome/free-solid-svg-icons';
 
