@@ -4,10 +4,10 @@ import { type HumanMessage } from "@langchain/core/messages";
 import { createAgent } from './agent.factory';
 import { streamLlmResponse } from './agent.llm';
 import { OnTokenCallback } from './agent.types';
+import { ApiKeyValidatorService } from './api-key-validator.service';
 
 @Injectable()
 export class AgentService {  private readonly logger = new Logger(AgentService.name);
-  private readonly apiKey: string;
   private readonly model: string;
   private readonly topicReminderMessage: string = "REMINDER: Only answer queries about companies and business topics. If this query is off-topic, respond with the standard off-topic message.";
   private readonly systemPrompt: string = `You are a specialized corporate research assistant with expertise in analyzing companies and industries.
@@ -58,17 +58,18 @@ This formatting ensures your responses will be easy to read and well-structured.
 
   private agentExecutorPromise: Promise<any> | null = null;
 
-  constructor(private readonly configService: ConfigService) {
+  constructor(
+    private readonly configService: ConfigService,
+    private readonly apiKeyValidator: ApiKeyValidatorService
+  ) {
     this.logger.log('Initializing AgentService');
-    this.apiKey = this.configService.get<string>('LLM_API_KEY');
     this.model = this.configService.get<string>('LLM_MODEL', 'gpt-4o-mini');
-    this.logger.log(`Configuration: Model=${this.model}, API Key=${this.apiKey ? 'Set' : 'NOT SET'}`);
-    if (!this.apiKey) {
-      this.logger.warn('LLM_API_KEY is not set. Agent functionality will not work properly.');
-    } else {
+    this.logger.log(`Configuration: Model=${this.model}, API Key=${this.apiKeyValidator.getApiKey() ? 'Set' : 'NOT SET'}`);
+      if (this.apiKeyValidator.isValid()) {
+      this.logger.log('API key appears valid. Creating agent executor...');
       this.agentExecutorPromise = createAgent({
         model: this.model,
-        apiKey: this.apiKey,
+        apiKey: this.apiKeyValidator.getApiKey(),
         systemPrompt: this.systemPrompt,
         logger: this.logger
       })
@@ -80,14 +81,18 @@ This formatting ensures your responses will be easy to read and well-structured.
           this.logger.error(`Failed to create agent executor: ${error.message}`);
           throw error;
         });
+    } else {
+      this.logger.warn('Invalid or missing API key. Agent functionality will not work properly.');
     }
-  }
-
+  }    
   async streamResponse(message: string, chatHistory: HumanMessage[] = [], onToken: OnTokenCallback, abortSignal?: AbortSignal): Promise<void> {
     try {
-      if (!this.apiKey) {
-        onToken('API key not configured. Please set the LLM_API_KEY environment variable.', true);
-        return;
+      if (!this.apiKeyValidator.isValid()) {
+        const isValid = await this.apiKeyValidator.validateApiKey();
+        if (!isValid) {
+          onToken('API key not configured or invalid. Please set a valid LLM_API_KEY environment variable.', true, undefined, true);
+          return;
+        }
       }
 
       if (!this.agentExecutorPromise) {
@@ -137,7 +142,7 @@ This formatting ensures your responses will be easy to read and well-structured.
       this.logger.log('Agent entered streaming state');      // Now stream the response with the enhanced context from tool executions
       await streamLlmResponse({
         model: this.model,
-        apiKey: this.apiKey,
+        apiKey: this.apiKeyValidator.getApiKey(),
         message: toolExecutionError 
           ? `${message}\n\n${agentContext}\n\n${this.topicReminderMessage}` 
           : agentContext 
@@ -150,7 +155,19 @@ This formatting ensures your responses will be easy to read and well-structured.
       });
     } catch (error: any) {
       this.logger.error(`Error setting up streaming: ${error.message}`);
-      onToken(`An error occurred: ${error.message}`, true);
+      
+      let errorMessage: string;
+      if (error.name === 'AuthenticationError') {
+        errorMessage = 'Authentication failed with the AI service. Please check that your API key is valid and correctly configured.';
+      } else if (error.name === 'RateLimitError') {
+        errorMessage = 'The rate limit for AI requests has been reached. Please try again later.';
+      } else if (error.code === 'ECONNREFUSED' || error.code === 'ECONNRESET') {
+        errorMessage = 'Failed to connect to the AI service. Please check your network connection or try again later.';
+      } else {
+        errorMessage = `An error occurred with the AI service: ${error.message}`;
+      }
+      
+      onToken(errorMessage, true, undefined, true);
     }
   }
   async streamPdfResponse(
@@ -160,9 +177,12 @@ This formatting ensures your responses will be easy to read and well-structured.
     abortSignal?: AbortSignal
   ): Promise<void> {
     try {
-      if (!this.apiKey) {
-        onToken('API key not configured. Please set the LLM_API_KEY environment variable.', true);
-        return;
+      if (!this.apiKeyValidator.isValid()) {
+        const isValid = await this.apiKeyValidator.validateApiKey();
+        if (!isValid) {
+          onToken('API key not configured or invalid. Please set a valid LLM_API_KEY environment variable.', true, undefined, true);
+          return;
+        }
       }
 
       // Signal that we're entering streaming phase
@@ -179,11 +199,10 @@ INSTRUCTIONS:
 4. Format your response using Markdown for better readability when appropriate.
 5. Use bullet points, headings, and other formatting to organize your response clearly.
 6. If quoting from the document, use ">" markdown quote formatting.
-7. BE DETAILED and THOROUGH in your answers, using all relevant information from the provided content.`;
-
-      // Stream the response using the direct LLM without tools
+7. BE DETAILED and THOROUGH in your answers, using all relevant information from the provided content.`;      
+// Stream the response using the direct LLM without tools
       await streamLlmResponse({
-        apiKey: this.apiKey,
+        apiKey: this.apiKeyValidator.getApiKey(),
         model: this.model,
         message: query,
         systemPrompt: systemPrompt,
@@ -191,9 +210,23 @@ INSTRUCTIONS:
         logger: this.logger,
         abortSignal
       });
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error(`Error streaming PDF response: ${error.message}`);
-      onToken(`Error: ${error.message || 'An unknown error occurred'}`, true);
+      
+      let errorMessage: string;
+      if (error.name === 'AuthenticationError') {
+        errorMessage = 'Authentication failed with the AI service. Please check that your API key is valid and correctly configured.';
+      } else if (error.name === 'RateLimitError') {
+        errorMessage = 'The rate limit for AI requests has been reached. Please try again later.';
+      } else if (error.code === 'ECONNREFUSED' || error.code === 'ECONNRESET') {
+        errorMessage = 'Failed to connect to the AI service. Please check your network connection or try again later.';
+      } else if (error.message.includes('PDF')) {
+        errorMessage = `PDF processing error: ${error.message}`;
+      } else {
+        errorMessage = `An error occurred with the AI service: ${error.message}`;
+      }
+      
+      onToken(errorMessage, true, undefined, true);
     }
   }
 }

@@ -10,7 +10,7 @@ interface ChatBoxProps {
   onModeChange?: (mode: ChatMode) => void;
 }
 
-const ChatBox: React.FC<ChatBoxProps> = ({ initialMode, onModeChange }) => {
+const ChatBox: React.FC<ChatBoxProps> = ({ initialMode, onModeChange }) => {  
   const {
     messages,
     inputValue,
@@ -37,7 +37,8 @@ const ChatBox: React.FC<ChatBoxProps> = ({ initialMode, onModeChange }) => {
     handleClearChat,
     handleDragEnter,
     handleDragLeave,
-    handleDragOver
+    handleDragOver,
+    onErrorClose
   } = useChat({ initialMode, onModeChange });
 
   return (
@@ -59,7 +60,7 @@ const ChatBox: React.FC<ChatBoxProps> = ({ initialMode, onModeChange }) => {
         messageContainerRef={messageContainerRef}
       />
 
-      {/* Floating toolbar and input section - fixed at bottom center */}
+      {/* Floating toolbar and input section - fixed at bottom center */}      
       <ChatControls
         error={error}
         chatMode={chatMode}
@@ -78,6 +79,7 @@ const ChatBox: React.FC<ChatBoxProps> = ({ initialMode, onModeChange }) => {
         isResearching={isResearching}
         isLoading={isLoading}
         isPdfUploaded={isPdfUploaded}
+        onErrorClose={onErrorClose}
       />
 
       {/* PDF upload handler */}

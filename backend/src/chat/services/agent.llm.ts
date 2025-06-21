@@ -195,10 +195,27 @@ export async function streamLlmResponse({
     } catch (streamError) {
       logger.error(`Error in stream processing: ${streamError.message}`);
       throw streamError;
-    }
+    }  
   } catch (error: any) {
     logger.error(`Error in streaming response: ${error.message}`);
-    onToken(`An error occurred while processing your request: ${error.message}`, true);
+    
+    let userMessage: string;
+    
+    if (error.name === 'AbortError') {
+      userMessage = 'Request was cancelled.';
+    } else if (error.name === 'AuthenticationError') {
+      userMessage = 'Failed to authenticate with the AI service. Please check the API key configuration.';
+    } else if (error.name === 'RateLimitError' || error.message.includes('rate limit')) {
+      userMessage = 'The rate limit for AI requests has been reached. Please try again later.';
+    } else if (error.code === 'ETIMEDOUT' || error.message.includes('timeout')) {
+      userMessage = 'The request timed out. Please try a shorter query or try again later.';
+    } else if (error.message.includes('content filter') || error.message.includes('content policy')) {
+      userMessage = 'Your request was flagged by the AI service content filter. Please reformulate your query.';
+    } else {
+      userMessage = 'An error occurred while processing your request. Please try again later.';
+    }
+    
+    onToken(userMessage, true, undefined, true);
   }
 }
 

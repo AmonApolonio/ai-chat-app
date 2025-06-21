@@ -13,8 +13,8 @@ export class ChatService {
   constructor(
     private readonly agentService: AgentService,
     private readonly pdfService: PdfService
-  ) { }
-  async processPdf(file: Express.Multer.File, sessionId: string): Promise<boolean> {
+  ) { }  
+  async processPdf(file: Express.Multer.File, sessionId: string): Promise<{success: boolean; error?: string}> {
     return await this.pdfService.processFile(file, sessionId);
   }
 
@@ -122,12 +122,26 @@ Format your answer using Markdown for better readability when appropriate.`;
 
       if (!isAborted) {
         this.chatHistory.set(sessionId, history);
-      }
+      }    
     } catch (error) {
       if (isAborted) return;
+      console.error('Error in stream response:', error);
+      let errorMessage: string;
+      
+      if (error.name === 'RateLimitError') {
+        errorMessage = 'Rate limit exceeded. Please wait before sending more requests.';
+      } else if (error.code === 'ECONNREFUSED' || error.code === 'ECONNRESET') {
+        errorMessage = 'Connection to the AI service failed. Please try again later.';
+      } else if (error.name === 'TimeoutError') {
+        errorMessage = 'The request timed out. Please try again.';
+      } else {
+        errorMessage = error.message || 'An unknown error occurred processing your request';
+      }
+      
       const errorResponse = {
-        chunk: `Error: ${error.message || 'An unknown error occurred'}`,
-        done: true
+        chunk: `Error: ${errorMessage}`,
+        done: true,
+        error: true
       };
       response.write(`data: ${JSON.stringify(errorResponse)}\n\n`);
       response.end();

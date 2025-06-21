@@ -2,6 +2,7 @@ import React, { MutableRefObject } from 'react';
 import { ChatMode } from '../../types/chat';
 import ChatToolbar from '../ChatToolbar';
 import ChatInput from '../ChatInput';
+import ErrorMessage from '../ErrorMessage';
 
 interface ChatControlsProps {
   error: string | null;
@@ -21,6 +22,7 @@ interface ChatControlsProps {
   isResearching: boolean;
   isLoading: boolean;
   isPdfUploaded: boolean;
+  onErrorClose: () => void;
 }
 
 const ChatControls: React.FC<ChatControlsProps> = ({
@@ -40,12 +42,12 @@ const ChatControls: React.FC<ChatControlsProps> = ({
   isStreaming,
   isResearching,
   isLoading,
-  isPdfUploaded
+  isPdfUploaded,
+  onErrorClose
 }) => {
   return (
-    <div className="fixed bottom-6 left-0 right-0 mx-auto w-full max-w-3xl px-4 z-10">
-      {/* Show error message if any */}
-      {error && <div className="bg-red-100 text-red-700 px-4 py-2 text-center text-sm mb-2 rounded-t-lg shadow-md">{error}</div>}
+    <div className="fixed bottom-6 left-0 right-0 mx-auto w-full max-w-3xl px-4 z-10">     
+      {error && <ErrorMessage message={error} onClose={onErrorClose} autoDismissTime={8000} />}
       
       <div className="bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden">
         {/* Controls toolbar */}

@@ -219,9 +219,21 @@ export const useChat = ({ initialMode, onModeChange }: UseChatProps) => {
         // Don't set Content-Type header when using FormData
         // The browser will set the correct multipart/form-data with boundary
       });
-      
-      if (!response.ok) {
-        throw new Error('Failed to upload file');
+        if (!response.ok) {
+        try {
+          const errorData = await response.json();
+          if (errorData && errorData.message) {
+            throw new Error(errorData.message);
+          }
+        } catch (parseError) {
+          if (response.status === 413) {
+            throw new Error('File is too large. Please upload a smaller PDF (max 10MB).');
+          } else if (response.status === 415) {
+            throw new Error('Invalid file type. Please upload a PDF file.');
+          } else {
+            throw new Error(`Failed to upload file: ${response.statusText || 'Server error'}`);
+          }
+        }
       }
       
       const data: FileUploadResponse = await response.json();
@@ -370,8 +382,18 @@ export const useChat = ({ initialMode, onModeChange }: UseChatProps) => {
                   messageFinalized = true;
                 }
               }
-                // Add the new chunk to accumulated text if it exists
-              if (data.chunk && data.status !== 'formatted-complete') {
+              
+              if (data.error) {
+                // Set error message instead of adding to chat
+                setError(data.chunk.replace('Error: ', ''));
+                // Reset streaming states
+                setIsStreaming(false);
+                setIsResearching(false);
+                setIsFormatting(false);
+                setCurrentStreamingMessage('');
+                messageFinalized = true;
+              }
+              else if (data.chunk && data.status !== 'formatted-complete') {
                 const newText = accumulatedText + data.chunk;
                 accumulatedText = newText;
                 setCurrentStreamingMessage(newText);
@@ -489,14 +511,22 @@ export const useChat = ({ initialMode, onModeChange }: UseChatProps) => {
         body: JSON.stringify(requestBody),
         signal: signal
       });
-      
-      if (!response.ok) {
-        if (response.status === 400) {
-          throw new Error('Message cannot be empty.');
-        } else if (response.status === 429) {
-          throw new Error('You reached your rate limit, await a minute before sending more messages.');
-        } else {
-          throw new Error('Connection lost, please retry.');
+        if (!response.ok) {
+        try {
+          const errorData = await response.json();
+          if (errorData && errorData.message) {
+            throw new Error(errorData.message);
+          }
+        } catch (parseError) {
+          if (response.status === 400) {
+            throw new Error('Message cannot be empty.');
+          } else if (response.status === 429) {
+            throw new Error('You reached your rate limit. Please wait a minute before sending more messages.');
+          } else if (response.status >= 500) {
+            throw new Error('Server error. Please try again later.');
+          } else {
+            throw new Error(`Error ${response.status}: ${response.statusText || 'Connection lost, please retry.'}`);
+          }
         }
       }
 
@@ -602,6 +632,19 @@ export const useChat = ({ initialMode, onModeChange }: UseChatProps) => {
   const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault(); // Prevent default to allow drop
   };
+  const onErrorClose = () => {
+    setError(null);
+  };
+
+  useEffect(() => {
+    if (error) {
+      const errorTimer = setTimeout(() => {
+        setError(null);
+      }, 8000);
+      
+      return () => clearTimeout(errorTimer);
+    }
+  }, [error]);
 
   return {
     // State
@@ -634,6 +677,7 @@ export const useChat = ({ initialMode, onModeChange }: UseChatProps) => {
     handleClearChat,
     handleDragEnter,
     handleDragLeave,
-    handleDragOver
+    handleDragOver,
+    onErrorClose
   };
 };

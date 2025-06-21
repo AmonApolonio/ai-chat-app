@@ -11,18 +11,25 @@ import { Document } from 'langchain/document';
 const pdfParse = require('pdf-parse');
 // For synchronous file operations
 import * as fsSync from 'fs';
+// API key validation service
+import { ApiKeyValidatorService } from './api-key-validator.service';
 
 @Injectable()
 export class PdfService {
   private readonly logger = new Logger(PdfService.name);  
-  private readonly apiKey: string;
   private readonly uploadDir = path.resolve(process.env.UPLOADS_DIR || path.join(process.cwd(), 'uploads'));
   private sessionDocuments: Map<string, MemoryVectorStore> = new Map();
-
-  constructor(private configService: ConfigService) {
-    this.apiKey = this.configService.get<string>('LLM_API_KEY');
+    constructor(
+    private apiKeyValidator: ApiKeyValidatorService
+  ) {
     this.ensureUploadDirExists();
+    this.logger.log(`API Key: ${this.apiKeyValidator.getApiKey() ? 'Set' : 'NOT SET'}`);
+    
+    if (!this.apiKeyValidator.isValid()) {
+      this.logger.warn('LLM_API_KEY is not set or has an invalid format. PDF processing functionality will not work properly.');
+    }
   }
+  
   private async ensureUploadDirExists(): Promise<void> {
     try {
       this.logger.log(`Ensuring upload directory exists at: ${this.uploadDir}`);
@@ -37,12 +44,12 @@ export class PdfService {
       this.logger.error(`Error stack: ${error.stack}`);
     }
   }
-    async processFile(file: Express.Multer.File, sessionId: string): Promise<boolean> {
+  async processFile(file: Express.Multer.File, sessionId: string): Promise<{success: boolean; error?: string}> {
     try {
       // Validate file exists
       if (!file || !file.path) {
         this.logger.error('Invalid file: File or file path is undefined');
-        return false;
+        return { success: false, error: 'Invalid file: File or file path is undefined' };
       }
       
       this.logger.log(`Processing PDF file: ${file.originalname}, stored at: ${file.path}`);
@@ -55,14 +62,14 @@ export class PdfService {
         destination: file.destination
       })}`);
       
-      // Check if file exists before reading
+      // Check if file exists before reading      
       try {
         await fs.access(file.path);
         this.logger.log(`Confirmed file exists at path: ${file.path}`);
       } catch (error) {
         this.logger.error(`File does not exist at path: ${file.path}`);
         this.logger.error(`File access error: ${error.message}`);
-        return false;
+        return { success: false, error: `File does not exist or cannot be accessed: ${error.message}` };
       }
       
       // File is already on disk, so read it directly
@@ -88,26 +95,38 @@ export class PdfService {
         const sampleContent = docs[0].pageContent.substring(0, 200) + "...";
         this.logger.log(`Sample document chunk: ${sampleContent}`);
       }
-        // Create embeddings and store in vector database
+
+      const isValid = await this.apiKeyValidator.validateApiKey();      if (!isValid) {
+          this.logger.error('Cannot process PDF: API key validation failed');
+          return { success: false, error: 'API key validation failed. Please check your API key configuration.' };
+        }
+
+      // Create embeddings and store in vector database
       const embeddings = new OpenAIEmbeddings({
-        openAIApiKey: this.apiKey
+        openAIApiKey: this.apiKeyValidator.getApiKey()
       });
       
       // Store in memory vector store (simpler than HNSW)
-      const vectorStore = await MemoryVectorStore.fromDocuments(docs, embeddings);
-        // Save to session map
+      const vectorStore = await MemoryVectorStore.fromDocuments(docs, embeddings);      // Save to session map
       this.sessionDocuments.set(sessionId, vectorStore);
       
-      return true;
+      return { success: true };
     } catch (error) {
       this.logger.error(`Error processing PDF: ${error.message}`);
       this.logger.error(`Error stack: ${error.stack}`);
       console.error('PDF Processing Error:', error);
-      return false;
-    }
+      return { success: false, error: `Error processing PDF: ${error.message}` };    }
   }
+  
   async searchSimilarDocuments(sessionId: string, query: string): Promise<string> {
     try {
+      if (!this.apiKeyValidator.isValid()) {
+        const isValid = await this.apiKeyValidator.validateApiKey();
+        if (!isValid) {
+          return "API key is invalid or was rejected. Please configure a valid API key to use PDF functionality.";
+        }
+      }
+      
       const vectorStore = this.sessionDocuments.get(sessionId);
       if (!vectorStore) {
         return "No PDF has been uploaded for this session. Please upload a PDF first.";

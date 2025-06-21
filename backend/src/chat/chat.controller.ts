@@ -61,18 +61,18 @@ export class ChatController {
     })
   )
 
-  @UsePipes(new ValidationPipe({ transform: true }))
+  @UsePipes(new ValidationPipe({ transform: true }))  
   async uploadPdf(
     @UploadedFile() file: Express.Multer.File,
     @Body() uploadDto: PdfUploadDto,
     @Res() response: Response
   ): Promise<void> {
-    const success = await this.chatService.processPdf(file, uploadDto.sessionId);
+    const result = await this.chatService.processPdf(file, uploadDto.sessionId);
     response.json({
-      success,
-      message: success 
+      success: result.success,
+      message: result.success 
         ? 'PDF processed successfully' 
-        : 'Failed to process PDF'
+        : result.error || 'Failed to process PDF'
     });
   }
   
